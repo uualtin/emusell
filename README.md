@@ -1,8 +1,19 @@
-# 🛒 Emusell - Blazor E-ticaret Platformu
+# 🛒 Emusell - 2. El Satış Sitesi
 
-Modern, hızlı ve kullanıcı dostu e-ticaret platformu. Blazor WebAssembly ile geliştirilmiştir.
+ITEC420 Framework Based Internet Applications dersi için geliştirilen 2. el ürün satış platformu.
 
-## 🚀 Özellikler
+## 📚 Ders Bilgileri
+
+- **Ders:** ITEC420 Framework Based Internet Applications
+- **Proje:** Emusell - 2. El Satış Sitesi
+- **Framework:** C# Blazor WebAssembly
+- **Team Leader:** Umut Utku Altın
+
+## 🎯 Proje Amacı
+
+Bu proje, ITEC420 dersi kapsamında modern web framework'leri kullanarak 2. el ürün satış platformu geliştirmeyi amaçlamaktadır.
+
+## 🚀 Özellikler (Planlanan)
 
 - 🛍️ Ürün kataloğu ve arama
 - 🛒 Alışveriş sepeti
@@ -15,23 +26,23 @@ Modern, hızlı ve kullanıcı dostu e-ticaret platformu. Blazor WebAssembly ile
 
 - **Frontend:** Blazor WebAssembly
 - **Backend:** ASP.NET Core Web API
-- **Database:** SQL Server / SQLite
+- **Database:** [Veritabanı seçimi yapılacak]
 - **Authentication:** ASP.NET Core Identity
 - **UI Framework:** Bootstrap 5
 - **Icons:** Font Awesome
 
-## 📋 Gereksinimler
+## 📋 Gereksinimlar
 
 - .NET 9.0 SDK
 - Visual Studio 2022 veya VS Code
-- SQL Server (opsiyonel, SQLite da kullanılabilir)
+- [Veritabanı gereksinimları belirlenecek]
 
 ## 🚀 Kurulum
 
 ### 1. Repository'yi klonlayın
 ```bash
-git clone https://github.com/yourusername/emusell-blazor.git
-cd emusell-blazor
+git clone [repository-url]
+cd emusell
 ```
 
 ### 2. Bağımlılıkları yükleyin
@@ -39,22 +50,10 @@ cd emusell-blazor
 dotnet restore
 ```
 
-### 3. Veritabanını yapılandırın
-```bash
-# SQLite için (varsayılan)
-dotnet ef database update
-
-# SQL Server için
-# appsettings.json'da connection string'i güncelleyin
-dotnet ef database update
-```
-
-### 4. Projeyi çalıştırın
+### 3. Projeyi çalıştırın
 ```bash
 dotnet run
 ```
-
-Tarayıcınızda `https://localhost:5001` adresine gidin.
 
 ## 🏗️ Proje Yapısı
 
@@ -71,17 +70,20 @@ Emusell/
 └── Program.cs          # Uygulama giriş noktası
 ```
 
-## 🤝 Katkıda Bulunma
+## 👥 Ekip
 
-Bu projeye katkıda bulunmak için [CONTRIBUTING.md](CONTRIBUTING.md) dosyasını okuyun.
+- **Team Leader:** Umut Utku Altın
+- **Grup Üyeleri:** [Grup üyeleri eklenecek]
 
-### Geliştirme Süreci
+## 📝 Geliştirme Süreci
 
-1. Issue oluşturun veya mevcut issue'yu alın
-2. Feature branch oluşturun (`git checkout -b feature/amazing-feature`)
-3. Değişikliklerinizi commit edin (`git commit -m 'feat: amazing feature'`)
-4. Branch'inizi push edin (`git push origin feature/amazing-feature`)
-5. Pull Request oluşturun
+Bu proje senior review sistemi ile geliştirilmektedir:
+
+1. **Issue oluşturun** veya mevcut issue'yu alın
+2. **Feature branch** oluşturun (`git checkout -b feature/amazing-feature`)
+3. **Değişikliklerinizi** commit edin
+4. **Pull Request** oluşturun
+5. **Senior review** bekleyin
 
 ### Commit Mesajları
 
@@ -96,32 +98,28 @@ refactor: kod yeniden düzenlendi
 test: test eklendi
 ```
 
-## 📝 Lisans
+## 🎯 Proje Roadmap
 
-Bu proje MIT lisansı altında lisanslanmıştır. Detaylar için [LICENSE](LICENSE) dosyasına bakın.
-
-## 👥 Ekip
-
-- **Senior Developer:** [Your Name]
-- **Contributors:** [Team Members]
-
-## 📞 İletişim
-
-- **GitHub Issues:** [Issues](https://github.com/yourusername/emusell-blazor/issues)
-- **Discussions:** [Discussions](https://github.com/yourusername/emusell-blazor/discussions)
-
-## 🎯 Roadmap
-
+- [ ] Proje yapısı kurulumu
+- [ ] Veritabanı tasarımı
 - [ ] Kullanıcı yönetimi
 - [ ] Ürün kataloğu
 - [ ] Alışveriş sepeti
 - [ ] Ödeme sistemi
 - [ ] Admin paneli
-- [ ] Mobil uygulama
 
 ## 📊 Proje Durumu
 
-![Build Status](https://github.com/yourusername/emusell-blazor/workflows/CI/badge.svg)
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![.NET](https://img.shields.io/badge/.NET-9.0-blue.svg)
-![Blazor](https://img.shields.io/badge/Blazor-WebAssembly-purple.svg)
+- **Durum:** Geliştirme aşamasında
+- **Framework:** Blazor WebAssembly
+- **.NET Version:** 9.0
+- **Ders:** ITEC420
+
+## 📞 İletişim
+
+- **GitHub Issues:** [Issues](https://github.com/[username]/emusell/issues)
+- **Team Leader:** Umut Utku Altın
+
+## 📝 Lisans
+
+Bu proje eğitim amaçlı geliştirilmiştir.
