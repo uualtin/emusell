@@ -41,7 +41,7 @@ Bu proje, ITEC420 dersi kapsamında modern web framework'leri kullanarak 2. el �
 
 ### 1. Repository'yi klonlayın
 ```bash
-git clone [repository-url]
+git clone https://github.com/uualtin/emusell
 cd emusell
 ```
 
