@@ -1,16 +1,44 @@
 ﻿@inherits LayoutComponentBase
-<div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
+@inject ThemeService ThemeService
+@inject OffcanvasService OffcanvasService
+@inject IJSRuntime JS
+@implements IDisposable
 
+<div class="page @(ThemeService.IsDarkMode ? "dark-theme" : "") @(OffcanvasService.IsOpen ? "offcanvas-open" : "")">
+    <NavMenu />
     <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
-        </div>
-
-        <article class="content px-4">
+        <article class="content">
             @Body
         </article>
+        <Footer />
     </main>
 </div>
+
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            ThemeService.OnThemeChanged += HandleThemeChanged;
+            OffcanvasService.OnOffcanvasChanged += HandleOffcanvasChanged;
+            await ThemeService.InitializeAsync(JS);
+            StateHasChanged();
+        }
+    }
+
+    private void HandleThemeChanged()
+    {
+        StateHasChanged();
+    }
+
+    private void HandleOffcanvasChanged()
+    {
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        ThemeService.OnThemeChanged -= HandleThemeChanged;
+        OffcanvasService.OnOffcanvasChanged -= HandleOffcanvasChanged;
+    }
+}
