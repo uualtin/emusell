@@ -1,0 +1,109 @@
+@page "/kategoriler"
+@using Emusell.Models
+@using Emusell.Services
+@inject CategoryService CategoryService
+@inject NavigationManager Navigation
+
+<PageTitle>Kategoriler - Emusell</PageTitle>
+
+<div class="container py-5">
+    <div class="text-center mb-5">
+        <h1 class="display-5 mb-3">
+            <i class="bi bi-grid-3x3-gap me-3"></i>Tüm Kategoriler
+        </h1>
+        <p class="lead text-muted">İlgilendiğiniz kategoriye göz atın ve ürünleri keşfedin</p>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                <span class="visually-hidden">Yükleniyor...</span>
+            </div>
+            <p class="mt-3 text-muted">Kategoriler yükleniyor...</p>
+        </div>
+    }
+    else if (categories == null || !categories.Any())
+    {
+        <div class="text-center py-5">
+            <i class="bi bi-inbox text-muted" style="font-size: 4rem;"></i>
+            <h3 class="h4 mb-3 mt-3">Henüz Kategori Yok</h3>
+            <p class="text-muted">Kategoriler eklendiğinde burada görünecek.</p>
+        </div>
+    }
+    else
+    {
+        <div class="row g-4">
+            @foreach (var category in categories)
+            {
+                <div class="col-12 col-sm-6 col-lg-4">
+                    <div class="card h-100 shadow-sm category-card" @onclick="() => NavigateToCategory(category.Slug)">
+                        <div class="card-body text-center p-4">
+                            <div class="category-icon-wrapper mb-3">
+                                <i class="bi @category.Icon" style="font-size: 3rem; color: var(--bs-primary);"></i>
+                            </div>
+                            <h3 class="h4 mb-2">@category.Name</h3>
+                            <p class="text-muted mb-3">@category.Description</p>
+                            <div class="badge bg-primary rounded-pill">
+                                @category.ProductCount Ürün
+                            </div>
+                        </div>
+                        <div class="card-footer bg-transparent border-0 text-center pb-3">
+                            <span class="text-primary fw-semibold">
+                                Görüntüle <i class="bi bi-arrow-right ms-1"></i>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<style>
+    .category-card {
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: 1px solid rgba(0,0,0,.125);
+    }
+
+    .category-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 0.5rem 1.5rem rgba(0,0,0,.15) !important;
+        border-color: var(--bs-primary);
+    }
+
+    .category-card:hover .category-icon-wrapper i {
+        transform: scale(1.1);
+        transition: transform 0.3s ease;
+    }
+
+    .category-icon-wrapper {
+        height: 80px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+</style>
+
+@code {
+    private List<Category>? categories;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCategories();
+    }
+
+    private async Task LoadCategories()
+    {
+        isLoading = true;
+        categories = await CategoryService.GetAllCategoriesAsync();
+        isLoading = false;
+    }
+
+    private void NavigateToCategory(string slug)
+    {
+        Navigation.NavigateTo($"/kategoriler/{slug}");
+    }
+}

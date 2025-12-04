@@ -1,4 +1,8 @@
 ﻿@page "/"
+@using Emusell.Models
+@using Emusell.Services
+@using Emusell.Components.Shared
+@inject ProductService ProductService
 
 <PageTitle>Emusell - İkinci El Alışveriş Platformu</PageTitle>
 
@@ -230,6 +234,45 @@
     </div>
 </section>
 
+<!-- Öne Çıkan Ürünler Section -->
+<section class="py-5" aria-labelledby="featured-products-title">
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 id="featured-products-title" class="section-title display-6 mb-0">
+                Öne Çıkan Ürünler
+            </h2>
+            <NavLink class="btn btn-outline-primary" href="/urunler">
+                Tümünü Gör <i class="bi bi-arrow-right ms-2"></i>
+            </NavLink>
+        </div>
+
+        @if (isLoadingProducts)
+        {
+            <LoadingSpinner Message="Ürünler yükleniyor..." />
+        }
+        else if (featuredProducts == null || !featuredProducts.Any())
+        {
+            <EmptyState 
+                Icon="bi-box-seam"
+                Title="Henüz Ürün Yok"
+                Message="Yeni ürünler eklendiğinde burada görünecek."
+                ActionText="İlk Ürünü Ekle"
+                ActionLink="/urun-ekle" />
+        }
+        else
+        {
+            <div class="row g-4">
+                @foreach (var product in featuredProducts)
+                {
+                    <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
+                        <ProductCard Product="@product" />
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</section>
+
 <!-- CTA Bandı -->
 <section class="cta-section" aria-labelledby="cta-title">
     <div class="container text-center">
@@ -317,3 +360,21 @@
         </div>
     </div>
 </section>
+
+@code {
+    private List<Product>? featuredProducts;
+    private bool isLoadingProducts = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadFeaturedProducts();
+    }
+
+    private async Task LoadFeaturedProducts()
+    {
+        isLoadingProducts = true;
+        var allProducts = await ProductService.GetAllProductsAsync();
+        featuredProducts = allProducts.Take(8).ToList();
+        isLoadingProducts = false;
+    }
+}
