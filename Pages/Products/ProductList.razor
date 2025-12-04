@@ -1,0 +1,164 @@
+@page "/urunler"
+@using Emusell.Models
+@using Emusell.Services
+@using Emusell.Components.Shared
+@inject ProductService ProductService
+@inject CategoryService CategoryService
+
+<PageTitle>Tüm Ürünler - Emusell</PageTitle>
+
+<div class="container py-5">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12 col-md-6">
+            <h1 class="display-6">Tüm Ürünler</h1>
+            @if (filteredProducts != null)
+            {
+                <p class="text-muted">@filteredProducts.Count ürün bulundu</p>
+            }
+        </div>
+        <div class="col-12 col-md-6 text-md-end">
+            <NavLink class="btn btn-primary" href="/urun-ekle">
+                <i class="bi bi-plus-circle me-2"></i>Ürün Ekle
+            </NavLink>
+        </div>
+    </div>
+
+    <!-- Search and Filter -->
+    <div class="row mb-4">
+        <div class="col-12 col-md-8">
+            <div class="input-group">
+                <span class="input-group-text">
+                    <i class="bi bi-search"></i>
+                </span>
+                <input type="text" 
+                       class="form-control" 
+                       placeholder="Ürün ara..." 
+                       @bind="searchTerm"
+                       @bind:event="oninput"
+                       @onkeyup="HandleSearch" />
+                @if (!string.IsNullOrWhiteSpace(searchTerm))
+                {
+                    <button class="btn btn-outline-secondary" type="button" @onclick="ClearSearch">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                }
+            </div>
+        </div>
+        <div class="col-12 col-md-4 mt-2 mt-md-0">
+            <select class="form-select" @onchange="HandleCategoryFilter">
+                <option value="0">Tüm Kategoriler</option>
+                @if (categories != null)
+                {
+                    @foreach (var category in categories)
+                    {
+                        <option value="@category.Id">@category.Name</option>
+                    }
+                }
+            </select>
+        </div>
+    </div>
+
+    <!-- Products Grid -->
+    @if (isLoading)
+    {
+        <LoadingSpinner Message="Ürünler yükleniyor..." />
+    }
+    else if (filteredProducts == null || !filteredProducts.Any())
+    {
+        <EmptyState 
+            Icon="bi-box-seam"
+            Title="Ürün Bulunamadı"
+            Message="Aradığınız kriterlere uygun ürün bulunmuyor."
+            ActionText="Filtreleri Temizle"
+            ActionLink="/urunler" />
+    }
+    else
+    {
+        <div class="row g-4">
+            @foreach (var product in filteredProducts)
+            {
+                <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
+                    <ProductCard Product="@product" />
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<Product>? products;
+    private List<Product>? filteredProducts;
+    private List<Category>? categories;
+    private bool isLoading = true;
+    private string searchTerm = string.Empty;
+    private int selectedCategoryId = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        
+        var productsTask = ProductService.GetAllProductsAsync();
+        var categoriesTask = CategoryService.GetAllCategoriesAsync();
+        
+        await Task.WhenAll(productsTask, categoriesTask);
+        
+        products = productsTask.Result;
+        categories = categoriesTask.Result;
+        filteredProducts = products;
+        
+        isLoading = false;
+    }
+
+    private async Task HandleSearch()
+    {
+        await ApplyFilters();
+    }
+
+    private async Task HandleCategoryFilter(ChangeEventArgs e)
+    {
+        selectedCategoryId = int.Parse(e.Value?.ToString() ?? "0");
+        await ApplyFilters();
+    }
+
+    private async Task ClearSearch()
+    {
+        searchTerm = string.Empty;
+        await ApplyFilters();
+    }
+
+    private async Task ApplyFilters()
+    {
+        await Task.Delay(200); // Debounce effect
+        
+        if (products == null) return;
+
+        filteredProducts = products;
+
+        // Search filter
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            var term = searchTerm.ToLower();
+            filteredProducts = filteredProducts
+                .Where(p => p.Title.ToLower().Contains(term) || 
+                           p.Description.ToLower().Contains(term) ||
+                           p.CategoryName.ToLower().Contains(term))
+                .ToList();
+        }
+
+        // Category filter
+        if (selectedCategoryId > 0)
+        {
+            filteredProducts = filteredProducts
+                .Where(p => p.CategoryId == selectedCategoryId)
+                .ToList();
+        }
+
+        StateHasChanged();
+    }
+}

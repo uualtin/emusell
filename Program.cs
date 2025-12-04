@@ -11,4 +11,9 @@ builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.
 builder.Services.AddSingleton<ThemeService>();
 builder.Services.AddSingleton<OffcanvasService>();
 
+builder.Services.AddScoped<ThemeService>();
+builder.Services.AddScoped<OffcanvasService>();
+builder.Services.AddScoped<ProductService>();
+builder.Services.AddScoped<CategoryService>();
+
 await builder.Build().RunAsync();

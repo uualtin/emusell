@@ -1,0 +1,214 @@
+@page "/urunler/{Id:int}"
+@using Emusell.Models
+@using Emusell.Services
+@using Emusell.Components.Shared
+@inject ProductService ProductService
+@inject NavigationManager Navigation
+
+<PageTitle>@(product?.Title ?? "Ürün Detayı") - Emusell</PageTitle>
+
+@if (isLoading)
+{
+    <div class="container py-5">
+        <LoadingSpinner Message="Ürün detayları yükleniyor..." />
+    </div>
+}
+else if (product == null)
+{
+    <div class="container py-5">
+        <EmptyState 
+            Icon="bi-exclamation-triangle"
+            Title="Ürün Bulunamadı"
+            Message="Aradığınız ürün bulunamadı veya kaldırılmış olabilir."
+            ActionText="Ürünlere Dön"
+            ActionLink="/urunler" />
+    </div>
+}
+else
+{
+    <div class="container py-5">
+        <!-- Breadcrumb -->
+        <nav aria-label="breadcrumb" class="mb-4">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/">Ana Sayfa</a></li>
+                <li class="breadcrumb-item"><a href="/urunler">Ürünler</a></li>
+                <li class="breadcrumb-item"><a href="/kategoriler/@product.CategoryName.ToLower()">@product.CategoryName</a></li>
+                <li class="breadcrumb-item active" aria-current="page">@product.Title</li>
+            </ol>
+        </nav>
+
+        <div class="row g-4">
+            <!-- Images -->
+            <div class="col-12 col-lg-6">
+                <div class="card shadow-sm">
+                    <img src="@currentImage" 
+                         class="card-img-top" 
+                         alt="@product.Title"
+                         style="height: 500px; object-fit: cover;" />
+                </div>
+                
+                @if (product.Images.Count > 1)
+                {
+                    <div class="row g-2 mt-2">
+                        @foreach (var image in product.Images.Take(4))
+                        {
+                            <div class="col-3">
+                                <img src="@image" 
+                                     class="img-fluid rounded shadow-sm @(image == currentImage ? "border border-primary border-3" : "")" 
+                                     alt="Ürün görseli"
+                                     style="height: 100px; object-fit: cover; cursor: pointer;"
+                                     @onclick="() => currentImage = image" />
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+
+            <!-- Details -->
+            <div class="col-12 col-lg-6">
+                <div class="mb-3">
+                    <span class="badge bg-primary fs-6">@product.CategoryName</span>
+                    <span class="badge bg-@GetConditionBadgeClass() ms-2 fs-6">@GetConditionText()</span>
+                </div>
+
+                <h1 class="display-5 mb-3">@product.Title</h1>
+
+                <div class="d-flex align-items-baseline mb-4">
+                    <span class="display-4 text-primary fw-bold">@product.Price.ToString("N0") ₺</span>
+                </div>
+
+                <div class="mb-4">
+                    <h5 class="mb-3">
+                        <i class="bi bi-card-text me-2"></i>Açıklama
+                    </h5>
+                    <p class="text-muted fs-6">@product.Description</p>
+                </div>
+
+                <div class="card bg-light mb-4 shadow-sm">
+                    <div class="card-body">
+                        <h6 class="card-title mb-3">
+                            <i class="bi bi-person-circle me-2"></i>Satıcı Bilgileri
+                        </h6>
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" 
+                                 style="width: 50px; height: 50px; font-size: 1.5rem;">
+                                @product.SellerName.Substring(0, 1).ToUpper()
+                            </div>
+                            <div>
+                                <div class="fw-bold">@product.SellerName</div>
+                                <small class="text-muted">
+                                    <i class="bi bi-geo-alt me-1"></i>@product.Location
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-grid gap-2 mb-4">
+                    <button class="btn btn-primary btn-lg">
+                        <i class="bi bi-chat-dots me-2"></i>Satıcıyla İletişime Geç
+                    </button>
+                    <button class="btn btn-outline-secondary">
+                        <i class="bi bi-heart me-2"></i>Favorilere Ekle
+                    </button>
+                </div>
+
+                <div class="card bg-white border-0">
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-6 border-end">
+                                <div class="text-muted small mb-1">
+                                    <i class="bi bi-eye me-1"></i>Görüntülenme
+                                </div>
+                                <div class="h5 mb-0">@product.ViewCount</div>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-muted small mb-1">
+                                    <i class="bi bi-clock me-1"></i>İlan Tarihi
+                                </div>
+                                <div class="h6 mb-0">@product.CreatedAt.ToString("dd MMM yyyy")</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Similar Products -->
+        @if (similarProducts != null && similarProducts.Any())
+        {
+            <div class="mt-5">
+                <h3 class="mb-4">
+                    <i class="bi bi-grid me-2"></i>Benzer Ürünler
+                </h3>
+                <div class="row g-4">
+                    @foreach (var similarProduct in similarProducts.Take(4))
+                    {
+                        <div class="col-12 col-sm-6 col-lg-3">
+                            <ProductCard Product="@similarProduct" />
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private Product? product;
+    private List<Product>? similarProducts;
+    private bool isLoading = true;
+    private string currentImage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProduct();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (product?.Id != Id)
+        {
+            await LoadProduct();
+        }
+    }
+
+    private async Task LoadProduct()
+    {
+        isLoading = true;
+        
+        product = await ProductService.GetProductByIdAsync(Id);
+        
+        if (product != null)
+        {
+            currentImage = product.ImageUrl;
+            similarProducts = await ProductService.GetProductsByCategoryAsync(product.CategoryId);
+            similarProducts = similarProducts.Where(p => p.Id != product.Id).ToList();
+        }
+        
+        isLoading = false;
+    }
+
+    private string GetConditionBadgeClass() => product?.Condition switch
+    {
+        ProductCondition.Yeni => "success",
+        ProductCondition.SıfırGibi => "info",
+        ProductCondition.Iyi => "primary",
+        ProductCondition.Orta => "warning",
+        ProductCondition.Kullanilmis => "secondary",
+        _ => "secondary"
+    };
+
+    private string GetConditionText() => product?.Condition switch
+    {
+        ProductCondition.Yeni => "Yeni",
+        ProductCondition.SıfırGibi => "Sıfır Gibi",
+        ProductCondition.Iyi => "İyi",
+        ProductCondition.Orta => "Orta",
+        ProductCondition.Kullanilmis => "Kullanılmış",
+        _ => ""
+    };
+}

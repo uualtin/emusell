@@ -16,20 +16,35 @@
         <!-- Desktop Nav -->
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav me-auto">
+                <!-- Ana Sayfa -->
+                <li class="nav-item">
+                    <NavLink class="nav-link" href="/" Match="NavLinkMatch.All">
+                        Ana Sayfa
+                    </NavLink>
+                </li>
+                <!-- Ürünler -->
+                <li class="nav-item">
+                    <NavLink class="nav-link" href="/urunler">
+                        Ürünler
+                    </NavLink>
+                </li>
                 <!-- Kategoriler Dropdown -->
                 <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" id="categoriesDropdown" role="button" 
-                       data-bs-toggle="dropdown" aria-expanded="false">
+                    <a class="nav-link dropdown-toggle" href="#" role="button" 
+                       @onclick="ToggleDesktopCategories"
+                       @onclick:preventDefault="true"
+                       aria-expanded="@isDesktopCategoriesOpen">
                         Kategoriler
                     </a>
-                    <ul class="dropdown-menu" aria-labelledby="categoriesDropdown">
-                        <li><NavLink class="dropdown-item" href="/kategoriler/elektronik">Elektronik</NavLink></li>
-                        <li><NavLink class="dropdown-item" href="/kategoriler/giyim">Giyim & Moda</NavLink></li>
-                        <li><NavLink class="dropdown-item" href="/kategoriler/ev-yasam">Ev & Yaşam</NavLink></li>
-                        <li><NavLink class="dropdown-item" href="/kategoriler/kitap-hobi">Kitap & Hobi</NavLink></li>
-                        <li><NavLink class="dropdown-item" href="/kategoriler/tasit">Taşıt</NavLink></li>
+                    <ul class="dropdown-menu @(isDesktopCategoriesOpen ? "show" : "")" aria-labelledby="categoriesDropdown">
+                        <li><NavLink class="dropdown-item" href="/kategoriler/elektronik" @onclick="CloseDesktopCategories">Elektronik</NavLink></li>
+                        <li><NavLink class="dropdown-item" href="/kategoriler/giyim" @onclick="CloseDesktopCategories">Giyim & Moda</NavLink></li>
+                        <li><NavLink class="dropdown-item" href="/kategoriler/ev-yasam" @onclick="CloseDesktopCategories">Ev & Yaşam</NavLink></li>
+                        <li><NavLink class="dropdown-item" href="/kategoriler/kitap-hobi" @onclick="CloseDesktopCategories">Kitap & Hobi</NavLink></li>
+                        <li><NavLink class="dropdown-item" href="/kategoriler/tasit" @onclick="CloseDesktopCategories">Taşıt</NavLink></li>
+                        <li><NavLink class="dropdown-item" href="/kategoriler/spor" @onclick="CloseDesktopCategories">Spor & Outdoor</NavLink></li>
                         <li><hr class="dropdown-divider"></li>
-                        <li><NavLink class="dropdown-item" href="/kategoriler">Tüm Kategoriler</NavLink></li>
+                        <li><NavLink class="dropdown-item" href="/kategoriler" @onclick="CloseDesktopCategories">Tüm Kategoriler</NavLink></li>
                     </ul>
                 </li>
                 <li class="nav-item">
@@ -100,8 +115,13 @@
         <!-- Nav Links (Mobile) -->
         <ul class="navbar-nav flex-column">
             <li class="nav-item">
-                <NavLink class="nav-link" href="/" Match="NavLinkMatch.All">
+                <NavLink class="nav-link" href="/" Match="NavLinkMatch.All" @onclick="CloseOffcanvas">
                     <i class="bi bi-house-door me-2"></i> Ana Sayfa
+                </NavLink>
+            </li>
+            <li class="nav-item">
+                <NavLink class="nav-link" href="/urunler" @onclick="CloseOffcanvas">
+                    <i class="bi bi-box-seam me-2"></i> Ürünler
                 </NavLink>
             </li>
             <li class="nav-item">
@@ -113,22 +133,23 @@
                 </a>
                 <div class="collapse @(isMobileCategoriesOpen ? "show" : "")" id="mobileCategories">
                     <ul class="list-unstyled ms-4 mt-2">
-                        <li><NavLink class="nav-link py-2" href="/kategoriler/elektronik">Elektronik</NavLink></li>
-                        <li><NavLink class="nav-link py-2" href="/kategoriler/giyim">Giyim & Moda</NavLink></li>
-                        <li><NavLink class="nav-link py-2" href="/kategoriler/ev-yasam">Ev & Yaşam</NavLink></li>
-                        <li><NavLink class="nav-link py-2" href="/kategoriler/kitap-hobi">Kitap & Hobi</NavLink></li>
-                        <li><NavLink class="nav-link py-2" href="/kategoriler/tasit">Taşıt</NavLink></li>
-                        <li><NavLink class="nav-link py-2" href="/kategoriler">Tüm Kategoriler</NavLink></li>
+                        <li><NavLink class="nav-link py-2" href="/kategoriler/elektronik" @onclick="CloseOffcanvas">Elektronik</NavLink></li>
+                        <li><NavLink class="nav-link py-2" href="/kategoriler/giyim" @onclick="CloseOffcanvas">Giyim & Moda</NavLink></li>
+                        <li><NavLink class="nav-link py-2" href="/kategoriler/ev-yasam" @onclick="CloseOffcanvas">Ev & Yaşam</NavLink></li>
+                        <li><NavLink class="nav-link py-2" href="/kategoriler/kitap-hobi" @onclick="CloseOffcanvas">Kitap & Hobi</NavLink></li>
+                        <li><NavLink class="nav-link py-2" href="/kategoriler/tasit" @onclick="CloseOffcanvas">Taşıt</NavLink></li>
+                        <li><NavLink class="nav-link py-2" href="/kategoriler/spor" @onclick="CloseOffcanvas">Spor & Outdoor</NavLink></li>
+                        <li><NavLink class="nav-link py-2" href="/kategoriler" @onclick="CloseOffcanvas">Tüm Kategoriler</NavLink></li>
                     </ul>
                 </div>
             </li>
             <li class="nav-item">
-                <NavLink class="nav-link" href="/nasil-calisir">
+                <NavLink class="nav-link" href="/nasil-calisir" @onclick="CloseOffcanvas">
                     <i class="bi bi-question-circle me-2"></i> Nasıl Çalışır?
                 </NavLink>
             </li>
             <li class="nav-item">
-                <NavLink class="nav-link" href="/hakkimizda">
+                <NavLink class="nav-link" href="/hakkimizda" @onclick="CloseOffcanvas">
                     <i class="bi bi-info-circle me-2"></i> Hakkımızda
                 </NavLink>
             </li>
@@ -160,6 +181,7 @@
 @code {
     private bool isDarkMode = false;
     private bool isMobileCategoriesOpen = false;
+    private bool isDesktopCategoriesOpen = false;
 
     protected override void OnInitialized()
     {
@@ -186,6 +208,18 @@
     private void ToggleMobileCategories()
     {
         isMobileCategoriesOpen = !isMobileCategoriesOpen;
+        StateHasChanged();
+    }
+
+    private void ToggleDesktopCategories()
+    {
+        isDesktopCategoriesOpen = !isDesktopCategoriesOpen;
+        StateHasChanged();
+    }
+
+    private void CloseDesktopCategories()
+    {
+        isDesktopCategoriesOpen = false;
         StateHasChanged();
     }
 
