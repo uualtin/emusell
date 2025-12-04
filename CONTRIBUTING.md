@@ -1,13 +1,6 @@
 # 🤝 Katkıda Bulunma Rehberi
 
-ITEC420 Framework Based Internet Applications dersi kapsamında geliştirilen Emusell projesine katkıda bulunmak için lütfen bu rehberi takip edin.
-
-## 📚 Ders Bilgileri
-
-- **Ders:** ITEC420 Framework Based Internet Applications
-- **Proje:** Emusell - 2. El Satış Sitesi
-- **Team Leader:** Umut Utku Altın
-- **Framework:** C# Blazor WebAssembly
+Bu projeye katkıda bulunmak için lütfen bu rehberi takip edin.
 
 ## 📋 Genel Kurallar
 

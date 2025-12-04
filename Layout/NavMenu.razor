@@ -1,214 +1,39 @@
-﻿@* Navbar Component - Emusell *@
-
-<nav class="navbar navbar-expand-lg navbar-emusell sticky-top" role="navigation" aria-label="Ana navigasyon">
-    <div class="container">
-        <!-- Logo -->
-        <NavLink class="navbar-brand" href="/" Match="NavLinkMatch.All">
-            <span class="fs-4 fw-bold">Emusell</span>
-        </NavLink>
-
-        <!-- Mobile Toggle -->
-        <button class="navbar-toggler" type="button" @onclick="ToggleOffcanvas" 
-                aria-controls="offcanvasNavbar" aria-label="Menüyü aç/kapat">
+﻿<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">Emusell</a>
+        <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
             <span class="navbar-toggler-icon"></span>
         </button>
-
-        <!-- Desktop Nav -->
-        <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav me-auto">
-                <!-- Kategoriler Dropdown -->
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" id="categoriesDropdown" role="button" 
-                       data-bs-toggle="dropdown" aria-expanded="false">
-                        Kategoriler
-                    </a>
-                    <ul class="dropdown-menu" aria-labelledby="categoriesDropdown">
-                        <li><NavLink class="dropdown-item" href="/kategoriler/elektronik">Elektronik</NavLink></li>
-                        <li><NavLink class="dropdown-item" href="/kategoriler/giyim">Giyim & Moda</NavLink></li>
-                        <li><NavLink class="dropdown-item" href="/kategoriler/ev-yasam">Ev & Yaşam</NavLink></li>
-                        <li><NavLink class="dropdown-item" href="/kategoriler/kitap-hobi">Kitap & Hobi</NavLink></li>
-                        <li><NavLink class="dropdown-item" href="/kategoriler/tasit">Taşıt</NavLink></li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li><NavLink class="dropdown-item" href="/kategoriler">Tüm Kategoriler</NavLink></li>
-                    </ul>
-                </li>
-                <li class="nav-item">
-                    <NavLink class="nav-link" href="/nasil-calisir">Nasıl Çalışır?</NavLink>
-                </li>
-                <li class="nav-item">
-                    <NavLink class="nav-link" href="/hakkimizda">Hakkımızda</NavLink>
-                </li>
-            </ul>
-
-            <!-- Right Side Actions -->
-            <div class="d-flex align-items-center gap-3">
-                <!-- Search -->
-                <div class="input-group search-wrapper d-none d-md-flex">
-                    <input type="search" class="form-control search-input" placeholder="Ürün ara..." 
-                           aria-label="Ürün ara" />
-                    <button class="btn btn-outline-secondary" type="button" aria-label="Ara">
-                        <i class="bi bi-search"></i>
-                    </button>
-                </div>
-
-                <!-- Theme Toggle -->
-                <button class="btn theme-toggle-btn" @onclick="ToggleTheme" aria-label="Tema değiştir">
-                    <i class="bi @(isDarkMode ? "bi-sun-fill" : "bi-moon-fill")"></i>
-                </button>
-
-                <!-- CTA Buttons -->
-                <NavLink class="btn btn-primary d-none d-lg-inline-flex" href="/urun-ekle">
-                    Ürün Sat
-                </NavLink>
-                <NavLink class="btn btn-link d-none d-lg-inline-flex" href="/giris">
-                    Giriş Yap
-                </NavLink>
-                <NavLink class="btn btn-outline-secondary d-none d-lg-inline-flex" href="/kayit">
-                    Kayıt Ol
-                </NavLink>
-            </div>
-        </div>
-    </div>
-</nav>
-
-<!-- Offcanvas Backdrop -->
-@if (OffcanvasService.IsOpen)
-{
-    <div class="offcanvas-backdrop fade show" @onclick="CloseOffcanvas" style="position: fixed; top: 0; left: 0; z-index: 1040; width: 100vw; height: 100vh; background-color: rgba(0, 0, 0, 0.5);"></div>
-}
-
-<!-- Offcanvas Menu (Mobile) -->
-<div class="offcanvas offcanvas-end @(OffcanvasService.IsOpen ? "show" : "")" 
-     tabindex="-1" 
-     id="offcanvasNavbar" 
-     aria-labelledby="offcanvasNavbarLabel"
-     style="@(OffcanvasService.IsOpen ? "visibility: visible;" : "")">
-    <div class="offcanvas-header">
-        <h5 class="offcanvas-title" id="offcanvasNavbarLabel">Menü</h5>
-        <button type="button" class="btn-close" @onclick="CloseOffcanvas" aria-label="Kapat"></button>
-    </div>
-    <div class="offcanvas-body">
-        <!-- Search (Mobile) -->
-        <div class="input-group mb-4">
-            <input type="search" class="form-control search-input" placeholder="Ürün ara..." 
-                   aria-label="Ürün ara" />
-            <button class="btn btn-outline-secondary" type="button" aria-label="Ara">
-                <i class="bi bi-search"></i>
-            </button>
-        </div>
-
-        <!-- Nav Links (Mobile) -->
-        <ul class="navbar-nav flex-column">
-            <li class="nav-item">
-                <NavLink class="nav-link" href="/" Match="NavLinkMatch.All">
-                    <i class="bi bi-house-door me-2"></i> Ana Sayfa
-                </NavLink>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" @onclick="ToggleMobileCategories" 
-                   role="button" 
-                   aria-expanded="@isMobileCategoriesOpen.ToString().ToLower()" 
-                   aria-controls="mobileCategories">
-                    <i class="bi bi-grid me-2"></i> Kategoriler
-                </a>
-                <div class="collapse @(isMobileCategoriesOpen ? "show" : "")" id="mobileCategories">
-                    <ul class="list-unstyled ms-4 mt-2">
-                        <li><NavLink class="nav-link py-2" href="/kategoriler/elektronik">Elektronik</NavLink></li>
-                        <li><NavLink class="nav-link py-2" href="/kategoriler/giyim">Giyim & Moda</NavLink></li>
-                        <li><NavLink class="nav-link py-2" href="/kategoriler/ev-yasam">Ev & Yaşam</NavLink></li>
-                        <li><NavLink class="nav-link py-2" href="/kategoriler/kitap-hobi">Kitap & Hobi</NavLink></li>
-                        <li><NavLink class="nav-link py-2" href="/kategoriler/tasit">Taşıt</NavLink></li>
-                        <li><NavLink class="nav-link py-2" href="/kategoriler">Tüm Kategoriler</NavLink></li>
-                    </ul>
-                </div>
-            </li>
-            <li class="nav-item">
-                <NavLink class="nav-link" href="/nasil-calisir">
-                    <i class="bi bi-question-circle me-2"></i> Nasıl Çalışır?
-                </NavLink>
-            </li>
-            <li class="nav-item">
-                <NavLink class="nav-link" href="/hakkimizda">
-                    <i class="bi bi-info-circle me-2"></i> Hakkımızda
-                </NavLink>
-            </li>
-        </ul>
-
-        <!-- Mobile Actions -->
-        <div class="d-grid gap-2 mt-4 pt-4 border-top">
-            <NavLink class="btn btn-primary" href="/urun-ekle" @onclick="CloseOffcanvas">
-                <i class="bi bi-plus-circle me-2"></i> Ürün Sat
-            </NavLink>
-            <NavLink class="btn btn-link" href="/giris" @onclick="CloseOffcanvas">
-                Giriş Yap
-            </NavLink>
-            <NavLink class="btn btn-outline-secondary" href="/kayit" @onclick="CloseOffcanvas">
-                Kayıt Ol
-            </NavLink>
-            <button class="btn btn-outline-secondary" @onclick="ToggleThemeAndClose">
-                <i class="bi @(isDarkMode ? "bi-sun-fill" : "bi-moon-fill") me-2"></i>
-                Tema: @(isDarkMode ? "Açık" : "Koyu")
-            </button>
-        </div>
     </div>
 </div>
 
-@inject ThemeService ThemeService
-@inject OffcanvasService OffcanvasService
-@implements IDisposable
+<div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
+    <nav class="nav flex-column">
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="counter">
+                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="weather">
+                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
+            </NavLink>
+        </div>
+    </nav>
+</div>
 
 @code {
-    private bool isDarkMode = false;
-    private bool isMobileCategoriesOpen = false;
+    private bool collapseNavMenu = true;
 
-    protected override void OnInitialized()
-    {
-        isDarkMode = ThemeService.IsDarkMode;
-        ThemeService.OnThemeChanged += HandleThemeChanged;
-        OffcanvasService.OnOffcanvasChanged += HandleOffcanvasChanged;
-    }
+    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
 
-    private void ToggleOffcanvas()
+    private void ToggleNavMenu()
     {
-        OffcanvasService.Toggle();
-    }
-
-    private void CloseOffcanvas()
-    {
-        OffcanvasService.Close();
-    }
-
-    private void HandleOffcanvasChanged()
-    {
-        StateHasChanged();
-    }
-
-    private void ToggleMobileCategories()
-    {
-        isMobileCategoriesOpen = !isMobileCategoriesOpen;
-        StateHasChanged();
-    }
-
-    private void HandleThemeChanged()
-    {
-        isDarkMode = ThemeService.IsDarkMode;
-        StateHasChanged();
-    }
-
-    private async Task ToggleTheme()
-    {
-        await ThemeService.ToggleTheme();
-    }
-
-    private async Task ToggleThemeAndClose()
-    {
-        await ToggleTheme();
-        CloseOffcanvas();
-    }
-
-    public void Dispose()
-    {
-        ThemeService.OnThemeChanged -= HandleThemeChanged;
-        OffcanvasService.OnOffcanvasChanged -= HandleOffcanvasChanged;
+        collapseNavMenu = !collapseNavMenu;
     }
 }
