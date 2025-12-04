@@ -1,0 +1,30 @@
+<div class="text-center py-5">
+    <div class="mb-4">
+        <i class="bi @Icon text-muted" style="font-size: 4rem;"></i>
+    </div>
+    <h3 class="h4 mb-3">@Title</h3>
+    <p class="text-muted mb-4">@Message</p>
+    @if (!string.IsNullOrEmpty(ActionText) && !string.IsNullOrEmpty(ActionLink))
+    {
+        <a href="@ActionLink" class="btn btn-primary">
+            @ActionText
+        </a>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public string Icon { get; set; } = "bi-inbox";
+
+    [Parameter]
+    public string Title { get; set; } = "Hiçbir şey bulunamadı";
+
+    [Parameter]
+    public string Message { get; set; } = "Henüz hiçbir içerik yok.";
+
+    [Parameter]
+    public string ActionText { get; set; } = string.Empty;
+
+    [Parameter]
+    public string ActionLink { get; set; } = string.Empty;
+}

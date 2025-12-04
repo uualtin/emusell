@@ -1,0 +1,158 @@
+@page "/kategoriler/{Slug}"
+@using Emusell.Models
+@using Emusell.Services
+@using Emusell.Components.Shared
+@inject CategoryService CategoryService
+@inject ProductService ProductService
+@inject NavigationManager Navigation
+
+<PageTitle>@(category?.Name ?? "Kategori") - Emusell</PageTitle>
+
+@if (isLoading)
+{
+    <div class="container py-5">
+        <LoadingSpinner Message="Ürünler yükleniyor..." />
+    </div>
+}
+else if (category == null)
+{
+    <div class="container py-5">
+        <EmptyState 
+            Icon="bi-exclamation-triangle"
+            Title="Kategori Bulunamadı"
+            Message="Aradığınız kategori bulunamadı."
+            ActionText="Kategorilere Dön"
+            ActionLink="/kategoriler" />
+    </div>
+}
+else
+{
+    <div class="container py-5">
+        <!-- Breadcrumb -->
+        <nav aria-label="breadcrumb" class="mb-4">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/">Ana Sayfa</a></li>
+                <li class="breadcrumb-item"><a href="/kategoriler">Kategoriler</a></li>
+                <li class="breadcrumb-item active" aria-current="page">@category.Name</li>
+            </ol>
+        </nav>
+
+        <!-- Category Header -->
+        <div class="row mb-5">
+            <div class="col-12">
+                <div class="card bg-light border-0 shadow-sm">
+                    <div class="card-body p-4">
+                        <div class="d-flex align-items-center">
+                            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-4" 
+                                 style="width: 80px; height: 80px; font-size: 2.5rem;">
+                                <i class="bi @category.Icon"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <h1 class="display-6 mb-2">@category.Name</h1>
+                                <p class="text-muted mb-0">@category.Description</p>
+                            </div>
+                            <div class="text-end">
+                                <div class="h2 text-primary mb-0">@products?.Count</div>
+                                <small class="text-muted">Ürün</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Products -->
+        @if (products == null || !products.Any())
+        {
+            <EmptyState 
+                Icon="bi-box-seam"
+                Title="Bu Kategoride Henüz Ürün Yok"
+                Message="Bu kategoriye ait ürünler eklendiğinde burada görünecek."
+                ActionText="Diğer Kategorilere Göz At"
+                ActionLink="/kategoriler" />
+        }
+        else
+        {
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="h4 mb-0">
+                    <i class="bi bi-grid me-2"></i>Ürünler
+                </h2>
+                <div class="btn-group" role="group" aria-label="Sort options">
+                    <button type="button" class="btn btn-sm @(sortOption == "newest" ? "btn-primary" : "btn-outline-primary")" 
+                            @onclick='() => SortProducts("newest")'>
+                        En Yeni
+                    </button>
+                    <button type="button" class="btn btn-sm @(sortOption == "price-asc" ? "btn-primary" : "btn-outline-primary")" 
+                            @onclick='() => SortProducts("price-asc")'>
+                        Ucuzdan Pahalıya
+                    </button>
+                    <button type="button" class="btn btn-sm @(sortOption == "price-desc" ? "btn-primary" : "btn-outline-primary")" 
+                            @onclick='() => SortProducts("price-desc")'>
+                        Pahalıdan Ucuza
+                    </button>
+                </div>
+            </div>
+
+            <div class="row g-4">
+                @foreach (var product in products)
+                {
+                    <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
+                        <ProductCard Product="@product" />
+                    </div>
+                }
+            </div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter]
+    public string Slug { get; set; } = string.Empty;
+
+    private Category? category;
+    private List<Product>? products;
+    private bool isLoading = true;
+    private string sortOption = "newest";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        
+        category = await CategoryService.GetCategoryBySlugAsync(Slug);
+        
+        if (category != null)
+        {
+            products = await ProductService.GetProductsByCategoryAsync(category.Id);
+            SortProducts(sortOption);
+        }
+        
+        isLoading = false;
+    }
+
+    private void SortProducts(string option)
+    {
+        sortOption = option;
+        
+        if (products == null) return;
+
+        products = option switch
+        {
+            "newest" => products.OrderByDescending(p => p.CreatedAt).ToList(),
+            "price-asc" => products.OrderBy(p => p.Price).ToList(),
+            "price-desc" => products.OrderByDescending(p => p.Price).ToList(),
+            _ => products
+        };
+
+        StateHasChanged();
+    }
+}
