@@ -1,0 +1,120 @@
+@page "/siparis-onay/{OrderNumber}"
+@inject AuthService AuthService
+@inject OrderService OrderService
+@rendermode InteractiveServer
+
+<PageTitle>Sipariş Onayı - Emusell</PageTitle>
+
+<div class="container py-5">
+    @if (order == null)
+    {
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Yükleniyor...</span>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="card shadow text-center">
+                    <div class="card-body p-5">
+                        <div class="mb-4">
+                            <div class="bg-success text-white rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 100px; height: 100px;">
+                                <i class="bi bi-check-lg display-3"></i>
+                            </div>
+                        </div>
+                        <h1 class="text-success mb-3">Siparişiniz Alındı!</h1>
+                        <p class="text-muted fs-5 mb-4">
+                            Siparişiniz başarıyla oluşturuldu. Teşekkür ederiz!
+                        </p>
+                        
+                        <div class="bg-light rounded p-4 mb-4">
+                            <p class="mb-2">Sipariş Numaranız:</p>
+                            <h3 class="text-primary mb-0">@order.OrderNumber</h3>
+                        </div>
+
+                        <div class="row text-start mb-4">
+                            <div class="col-md-6">
+                                <h6>Teslimat Adresi</h6>
+                                <p class="text-muted mb-0">@order.BuyerName</p>
+                                <p class="text-muted mb-0">@order.ShippingAddress</p>
+                                <p class="text-muted">@order.BuyerPhone</p>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Sipariş Bilgileri</h6>
+                                <p class="mb-1">
+                                    <span class="text-muted">Sipariş Tarihi:</span> @order.CreatedAt.ToString("dd.MM.yyyy HH:mm")
+                                </p>
+                                <p class="mb-1">
+                                    <span class="text-muted">Ödeme Yöntemi:</span> @GetPaymentMethodName(order.PaymentMethod)
+                                </p>
+                                <p class="mb-0">
+                                    <span class="text-muted">Toplam Tutar:</span> <strong class="text-primary">@order.TotalAmount.ToString("C0", new System.Globalization.CultureInfo("tr-TR"))</strong>
+                                </p>
+                            </div>
+                        </div>
+
+                        <h6 class="text-start">Sipariş Edilen Ürünler</h6>
+                        <div class="table-responsive mb-4">
+                            <table class="table table-sm">
+                                <tbody>
+                                    @foreach (var item in order.Items)
+                                    {
+                                        <tr>
+                                            <td class="text-start">
+                                                <div class="d-flex align-items-center">
+                                                    <img src="@item.ProductImageUrl" class="rounded me-2" style="width: 50px; height: 50px; object-fit: cover;" onerror="this.src='https://via.placeholder.com/50'" />
+                                                    <div>
+                                                        <strong>@item.ProductTitle</strong>
+                                                        <span class="text-muted d-block small">x@item.Quantity</span>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td class="text-end align-middle">
+                                                @((item.Price * item.Quantity).ToString("C0", new System.Globalization.CultureInfo("tr-TR")))
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="d-flex gap-3 justify-content-center">
+                            <a href="/hesabim/siparislerim" class="btn btn-primary">
+                                <i class="bi bi-box-seam me-2"></i>Siparişlerimi Görüntüle
+                            </a>
+                            <a href="/urunler" class="btn btn-outline-secondary">
+                                <i class="bi bi-grid me-2"></i>Alışverişe Devam Et
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public string? OrderNumber { get; set; }
+
+    private Order? order;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!string.IsNullOrEmpty(OrderNumber))
+        {
+            order = await OrderService.GetOrderByOrderNumberAsync(OrderNumber);
+        }
+    }
+
+    private string GetPaymentMethodName(string? method) => method switch
+    {
+        "credit_card" => "Kredi Kartı",
+        "bank_transfer" => "Havale/EFT",
+        "cash_on_delivery" => "Kapıda Ödeme",
+        _ => "Bilinmiyor"
+    };
+}

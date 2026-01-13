@@ -1,0 +1,113 @@
+@page "/giris"
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<PageTitle>Giriş Yap - Emusell</PageTitle>
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="card shadow">
+                <div class="card-body p-4">
+                    <div class="text-center mb-4">
+                        <i class="bi bi-shop display-4 text-primary"></i>
+                        <h2 class="mt-3">Giriş Yap</h2>
+                        <p class="text-muted">Hesabınıza giriş yapın</p>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger">
+                            <i class="bi bi-exclamation-triangle me-2"></i>@errorMessage
+                        </div>
+                    }
+
+                    <EditForm Model="@loginModel" OnValidSubmit="HandleLogin" FormName="LoginForm">
+                        <DataAnnotationsValidator />
+
+                        <div class="mb-3">
+                            <label for="email" class="form-label">E-posta</label>
+                            <InputText id="email" @bind-Value="loginModel.Email" class="form-control" placeholder="ornek@email.com" />
+                            <ValidationMessage For="@(() => loginModel.Email)" class="text-danger" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Şifre</label>
+                            <InputText id="password" @bind-Value="loginModel.Password" type="password" class="form-control" placeholder="********" />
+                            <ValidationMessage For="@(() => loginModel.Password)" class="text-danger" />
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div class="form-check">
+                                <InputCheckbox id="rememberMe" @bind-Value="loginModel.RememberMe" class="form-check-input" />
+                                <label class="form-check-label" for="rememberMe">Beni Hatırla</label>
+                            </div>
+                            <a href="/sifremi-unuttum" class="text-primary text-decoration-none small">Şifremi Unuttum</a>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg" disabled="@isLoading">
+                                @if (isLoading)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                <i class="bi bi-box-arrow-in-right me-2"></i>Giriş Yap
+                            </button>
+                        </div>
+                    </EditForm>
+
+                    <hr class="my-4" />
+
+                    <div class="text-center">
+                        <p class="mb-2">Hesabınız yok mu?</p>
+                        <NavLink href="/kayit" class="btn btn-outline-primary">
+                            <i class="bi bi-person-plus me-2"></i>Kayıt Ol
+                        </NavLink>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private LoginModel loginModel = new();
+    private string? errorMessage;
+    private bool isLoading;
+
+    private async Task HandleLogin()
+    {
+        isLoading = true;
+        errorMessage = null;
+
+        var (success, message) = await AuthService.LoginAsync(loginModel.Email, loginModel.Password);
+
+        if (success)
+        {
+            // Small delay to ensure state is updated before navigation
+            await Task.Delay(100);
+            
+            // Redirect based on role
+            if (AuthService.IsAdmin)
+                Navigation.NavigateTo("/admin/dashboard");
+            else if (AuthService.IsSeller)
+                Navigation.NavigateTo("/satici/dashboard");
+            else
+                Navigation.NavigateTo("/hesabim/dashboard");
+        }
+        else
+        {
+            errorMessage = message;
+        }
+
+        isLoading = false;
+    }
+
+    public class LoginModel
+    {
+        public string Email { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+        public bool RememberMe { get; set; }
+    }
+}

@@ -2,27 +2,21 @@ namespace Emusell.Services;
 
 public class OffcanvasService
 {
-    private bool _isOpen = false;
-    public event Action? OnOffcanvasChanged;
+    private bool _isOpen;
 
     public bool IsOpen => _isOpen;
+    public event Action? OnOffcanvasChanged;
 
     public void Open()
     {
-        if (!_isOpen)
-        {
-            _isOpen = true;
-            OnOffcanvasChanged?.Invoke();
-        }
+        _isOpen = true;
+        OnOffcanvasChanged?.Invoke();
     }
 
     public void Close()
     {
-        if (_isOpen)
-        {
-            _isOpen = false;
-            OnOffcanvasChanged?.Invoke();
-        }
+        _isOpen = false;
+        OnOffcanvasChanged?.Invoke();
     }
 
     public void Toggle()
@@ -31,4 +25,3 @@ public class OffcanvasService
         OnOffcanvasChanged?.Invoke();
     }
 }
-

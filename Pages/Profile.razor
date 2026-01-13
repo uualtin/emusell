@@ -1,0 +1,216 @@
+@page "/profil"
+@inject AuthService AuthService
+@inject UserService UserService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<PageTitle>Profil - Emusell</PageTitle>
+
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="container py-5 text-center">
+        <i class="bi bi-person-x display-1 text-warning"></i>
+        <h2 class="mt-3">Giriş Yapmalısınız</h2>
+        <p class="text-muted">Profilinizi görüntülemek için giriş yapın.</p>
+        <a href="/giris" class="btn btn-primary">Giriş Yap</a>
+    </div>
+}
+else
+{
+    <div class="container py-4">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="card shadow">
+                    <div class="card-header">
+                        <h4 class="mb-0"><i class="bi bi-person me-2"></i>Profil Ayarları</h4>
+                    </div>
+                    <div class="card-body">
+                        @if (!string.IsNullOrEmpty(message))
+                        {
+                            <div class="alert @(isError ? "alert-danger" : "alert-success")">
+                                @message
+                            </div>
+                        }
+
+                        <!-- Profil Bilgileri -->
+                        <h5 class="mb-3">Kişisel Bilgiler</h5>
+                        <EditForm Model="@profileModel" OnValidSubmit="UpdateProfile" FormName="ProfileForm">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Ad Soyad</label>
+                                    <InputText @bind-Value="profileModel.FullName" class="form-control" />
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">E-posta</label>
+                                    <input type="email" class="form-control" value="@AuthService.CurrentUser?.Email" disabled />
+                                    <small class="text-muted">E-posta adresi değiştirilemez.</small>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Telefon</label>
+                                    <InputText @bind-Value="profileModel.Phone" class="form-control" />
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Hesap Türü</label>
+                                    <input type="text" class="form-control" value="@GetRoleDisplayName(AuthService.CurrentUser?.Role ?? UserRole.Buyer)" disabled />
+                                </div>
+                                <div class="col-12 mb-3">
+                                    <label class="form-label">Adres</label>
+                                    <InputTextArea @bind-Value="profileModel.Address" class="form-control" rows="2" />
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary" disabled="@isLoading">
+                                @if (isLoading)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                <i class="bi bi-check-lg me-2"></i>Bilgileri Güncelle
+                            </button>
+                        </EditForm>
+
+                        <hr class="my-4" />
+
+                        <!-- Şifre Değiştirme -->
+                        <h5 class="mb-3">Şifre Değiştir</h5>
+                        <EditForm Model="@passwordModel" OnValidSubmit="ChangePassword" FormName="PasswordForm">
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Mevcut Şifre</label>
+                                    <InputText @bind-Value="passwordModel.CurrentPassword" type="password" class="form-control" />
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Yeni Şifre</label>
+                                    <InputText @bind-Value="passwordModel.NewPassword" type="password" class="form-control" />
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Yeni Şifre (Tekrar)</label>
+                                    <InputText @bind-Value="passwordModel.ConfirmPassword" type="password" class="form-control" />
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-warning" disabled="@isChangingPassword">
+                                @if (isChangingPassword)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                <i class="bi bi-key me-2"></i>Şifreyi Değiştir
+                            </button>
+                        </EditForm>
+
+                        <hr class="my-4" />
+
+                        <!-- Hesap İşlemleri -->
+                        <h5 class="mb-3">Hesap İşlemleri</h5>
+                        <p class="text-muted">Kayıt tarihi: @AuthService.CurrentUser?.CreatedAt.ToString("dd MMMM yyyy", new System.Globalization.CultureInfo("tr-TR"))</p>
+                        <button class="btn btn-outline-danger" @onclick="Logout">
+                            <i class="bi bi-box-arrow-right me-2"></i>Çıkış Yap
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private ProfileModel profileModel = new();
+    private PasswordModel passwordModel = new();
+    private string? message;
+    private bool isError;
+    private bool isLoading;
+    private bool isChangingPassword;
+
+    protected override void OnInitialized()
+    {
+        if (AuthService.CurrentUser != null)
+        {
+            profileModel = new ProfileModel
+            {
+                FullName = AuthService.CurrentUser.FullName,
+                Phone = AuthService.CurrentUser.Phone,
+                Address = AuthService.CurrentUser.Address
+            };
+        }
+    }
+
+    private async Task UpdateProfile()
+    {
+        isLoading = true;
+
+        var success = await AuthService.UpdateProfileAsync(
+            profileModel.FullName,
+            profileModel.Phone,
+            profileModel.Address
+        );
+
+        if (success)
+        {
+            message = "Profil bilgileriniz güncellendi.";
+            isError = false;
+        }
+        else
+        {
+            message = "Güncelleme başarısız oldu.";
+            isError = true;
+        }
+
+        isLoading = false;
+    }
+
+    private async Task ChangePassword()
+    {
+        if (passwordModel.NewPassword != passwordModel.ConfirmPassword)
+        {
+            message = "Yeni şifreler eşleşmiyor.";
+            isError = true;
+            return;
+        }
+
+        isChangingPassword = true;
+
+        var success = await AuthService.ChangePasswordAsync(
+            passwordModel.CurrentPassword,
+            passwordModel.NewPassword
+        );
+
+        if (success)
+        {
+            message = "Şifreniz değiştirildi.";
+            isError = false;
+            passwordModel = new PasswordModel();
+        }
+        else
+        {
+            message = "Mevcut şifre hatalı.";
+            isError = true;
+        }
+
+        isChangingPassword = false;
+    }
+
+    private void Logout()
+    {
+        AuthService.Logout();
+        Navigation.NavigateTo("/");
+    }
+
+    private string GetRoleDisplayName(UserRole role) => role switch
+    {
+        UserRole.Admin => "Admin",
+        UserRole.Seller => "Satıcı",
+        UserRole.Buyer => "Alıcı",
+        _ => "Bilinmiyor"
+    };
+
+    public class ProfileModel
+    {
+        public string FullName { get; set; } = "";
+        public string Phone { get; set; } = "";
+        public string Address { get; set; } = "";
+    }
+
+    public class PasswordModel
+    {
+        public string CurrentPassword { get; set; } = "";
+        public string NewPassword { get; set; } = "";
+        public string ConfirmPassword { get; set; } = "";
+    }
+}

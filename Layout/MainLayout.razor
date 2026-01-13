@@ -1,44 +1,77 @@
 ﻿@inherits LayoutComponentBase
 @inject ThemeService ThemeService
 @inject OffcanvasService OffcanvasService
+@inject AuthService AuthService
+@inject LocalizationService Localization
 @inject IJSRuntime JS
 @implements IDisposable
 
-<div class="page @(ThemeService.IsDarkMode ? "dark-theme" : "") @(OffcanvasService.IsOpen ? "offcanvas-open" : "")">
-    <NavMenu />
-    <main>
-        <article class="content">
-            @Body
-        </article>
-        <Footer />
-    </main>
-</div>
+@if (!_initialized)
+{
+    <div class="d-flex justify-content-center align-items-center" style="height: 100vh;">
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Yükleniyor...</span>
+            </div>
+            <p class="mt-3 text-muted">Yükleniyor...</p>
+        </div>
+    </div>
+}
+else
+{
+    <CascadingValue Value="AuthService" Name="AuthService">
+    <CascadingValue Value="ThemeService" Name="ThemeService">
+    <CascadingValue Value="Localization" Name="Localization">
+        <div class="page @(ThemeService.IsDarkMode ? "dark-theme" : "") @(OffcanvasService.IsOpen ? "offcanvas-open" : "")">
+            <NavMenu />
+            <main>
+                <article class="content">
+                    @Body
+                </article>
+                <Footer />
+            </main>
+        </div>
+    </CascadingValue>
+    </CascadingValue>
+    </CascadingValue>
+}
 
 @code {
+    private bool _initialized = false;
+
+    protected override void OnInitialized()
+    {
+        // Subscribe to events
+        ThemeService.OnThemeChanged += HandleStateChanged;
+        OffcanvasService.OnOffcanvasChanged += HandleStateChanged;
+        AuthService.OnAuthStateChanged += HandleStateChanged;
+        Localization.OnLanguageChanged += HandleStateChanged;
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
-            ThemeService.OnThemeChanged += HandleThemeChanged;
-            OffcanvasService.OnOffcanvasChanged += HandleOffcanvasChanged;
+            // Initialize all services with JS runtime
             await ThemeService.InitializeAsync(JS);
+            await Localization.InitializeAsync(JS);
+            await AuthService.InitializeAsync(JS);
+            
+            _initialized = true;
             StateHasChanged();
         }
     }
 
-    private void HandleThemeChanged()
+    private void HandleStateChanged()
     {
-        StateHasChanged();
-    }
-
-    private void HandleOffcanvasChanged()
-    {
-        StateHasChanged();
+        InvokeAsync(StateHasChanged);
     }
 
     public void Dispose()
     {
-        ThemeService.OnThemeChanged -= HandleThemeChanged;
-        OffcanvasService.OnOffcanvasChanged -= HandleOffcanvasChanged;
+        ThemeService.OnThemeChanged -= HandleStateChanged;
+        OffcanvasService.OnOffcanvasChanged -= HandleStateChanged;
+        AuthService.OnAuthStateChanged -= HandleStateChanged;
+        Localization.OnLanguageChanged -= HandleStateChanged;
     }
 }

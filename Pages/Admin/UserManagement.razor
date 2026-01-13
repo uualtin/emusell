@@ -1,0 +1,566 @@
+@page "/admin/kullanicilar"
+@inject AuthService AuthService
+@inject UserService UserService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<PageTitle>Kullanıcı Yönetimi - Emusell Admin</PageTitle>
+
+@if (!AuthService.IsAdmin)
+{
+    <div class="container py-5 text-center">
+        <i class="bi bi-shield-exclamation display-1 text-danger"></i>
+        <h2 class="mt-3">Yetkisiz Erişim</h2>
+        <p class="text-muted">Bu sayfayı görüntüleme yetkiniz yok.</p>
+        <a href="/" class="btn btn-primary">Ana Sayfaya Dön</a>
+    </div>
+}
+else
+{
+    <div class="container py-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="mb-0"><i class="bi bi-people me-2"></i>Kullanıcı Yönetimi</h1>
+                <p class="text-muted mb-0">Sistem kullanıcılarını yönetin</p>
+            </div>
+            <button class="btn btn-primary" @onclick="ShowAddUserModal">
+                <i class="bi bi-person-plus me-2"></i>Yeni Kullanıcı
+            </button>
+        </div>
+
+        @if (!string.IsNullOrEmpty(message))
+        {
+            <div class="alert @(isError ? "alert-danger" : "alert-success") alert-dismissible fade show">
+                @message
+                <button type="button" class="btn-close" @onclick="() => message = null"></button>
+            </div>
+        }
+
+        <!-- Filtreler -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row g-3 align-items-center">
+                    <div class="col-md-4">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                            <input type="text" class="form-control" placeholder="Kullanıcı ara..." @bind="searchTerm" @bind:event="oninput" />
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" @bind="filterRole">
+                            <option value="">Tüm Roller</option>
+                            <option value="Admin">Admin</option>
+                            <option value="Seller">Satıcı</option>
+                            <option value="Buyer">Alıcı</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" @bind="filterStatus">
+                            <option value="">Tüm Durumlar</option>
+                            <option value="true">Aktif</option>
+                            <option value="false">Askıda</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Kullanıcı Tablosu -->
+        <div class="card">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Kullanıcı</th>
+                            <th>E-posta</th>
+                            <th>Rol</th>
+                            <th>Durum</th>
+                            <th>Kayıt Tarihi</th>
+                            <th class="text-end">İşlemler</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (filteredUsers?.Any() == true)
+                        {
+                            @foreach (var user in filteredUsers)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar bg-primary text-white rounded-circle me-2 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                                @user.FullName[0]
+                                            </div>
+                                            <div>
+                                                <strong>@user.FullName</strong>
+                                                <br />
+                                                <small class="text-muted">@user.Phone</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>@user.Email</td>
+                                    <td>
+                                        <span class="badge @GetRoleBadgeClass(user.Role)">
+                                            @GetRoleDisplayName(user.Role)
+                                        </span>
+                                    </td>
+                                    <td>
+                                        @if (user.IsActive)
+                                        {
+                                            <span class="badge bg-success">Aktif</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-danger">Askıda</span>
+                                        }
+                                    </td>
+                                    <td>@user.CreatedAt.ToString("dd.MM.yyyy")</td>
+                                    <td class="text-end">
+                                        <div class="btn-group">
+                                            <button class="btn btn-sm btn-outline-primary" @onclick="() => ShowEditUserModal(user)" title="Düzenle">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            @if (user.IsActive)
+                                            {
+                                                <button class="btn btn-sm btn-outline-warning" @onclick="() => ShowSuspendConfirm(user)" title="Askıya Al">
+                                                    <i class="bi bi-pause-circle"></i>
+                                                </button>
+                                            }
+                                            else
+                                            {
+                                                <button class="btn btn-sm btn-outline-success" @onclick="() => ShowReactivateConfirm(user)" title="Aktifleştir">
+                                                    <i class="bi bi-play-circle"></i>
+                                                </button>
+                                            }
+                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => ShowDeleteConfirm(user)" title="Sil" disabled="@(user.Id == AuthService.CurrentUser?.Id)">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="6" class="text-center py-4">
+                                    <i class="bi bi-inbox display-4 text-muted"></i>
+                                    <p class="text-muted mt-2">Kullanıcı bulunamadı</p>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Kullanıcı Modal -->
+    @if (showModal)
+    {
+        <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5);">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">@(isEditing ? "Kullanıcı Düzenle" : "Yeni Kullanıcı")</h5>
+                        <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                    </div>
+                    <EditForm Model="@editingUser" OnValidSubmit="SaveUser">
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label class="form-label">Ad Soyad</label>
+                                <InputText @bind-Value="editingUser.FullName" class="form-control" />
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">E-posta</label>
+                                <InputText @bind-Value="editingUser.Email" class="form-control" />
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Telefon</label>
+                                <InputText @bind-Value="editingUser.Phone" class="form-control" />
+                            </div>
+                            @if (!isEditing)
+                            {
+                                <div class="mb-3">
+                                    <label class="form-label">Şifre</label>
+                                    <InputText @bind-Value="newPassword" type="password" class="form-control" />
+                                </div>
+                            }
+                            <div class="mb-3">
+                                <label class="form-label">Rol</label>
+                                <InputSelect @bind-Value="editingUser.Role" class="form-select">
+                                    <option value="@UserRole.Buyer">Alıcı</option>
+                                    <option value="@UserRole.Seller">Satıcı</option>
+                                    <option value="@UserRole.Admin">Admin</option>
+                                </InputSelect>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Adres</label>
+                                <InputTextArea @bind-Value="editingUser.Address" class="form-control" rows="2" />
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CloseModal">İptal</button>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-lg me-2"></i>Kaydet
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Askıya Alma Onay Modalı -->
+    @if (showSuspendModal && userToSuspend != null)
+    {
+        <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5);">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header border-0">
+                        <h5 class="modal-title text-warning">
+                            <i class="bi bi-pause-circle me-2"></i>Kullanıcıyı Askıya Al
+                        </h5>
+                        <button type="button" class="btn-close" @onclick="CloseSuspendModal"></button>
+                    </div>
+                    <div class="modal-body text-center py-4">
+                        <div class="avatar bg-warning text-dark rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px; font-size: 2rem;">
+                            @userToSuspend.FullName[0]
+                        </div>
+                        <h5>@userToSuspend.FullName</h5>
+                        <p class="text-muted mb-1">@userToSuspend.Email</p>
+                        <span class="badge @GetRoleBadgeClass(userToSuspend.Role) mb-3">@GetRoleDisplayName(userToSuspend.Role)</span>
+                        <p class="text-muted">Bu kullanıcıyı askıya almak istediğinizden emin misiniz?</p>
+                        <div class="alert alert-info mb-0">
+                            <i class="bi bi-info-circle me-2"></i>
+                            Askıya alınan kullanıcı sisteme giriş yapamaz.
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0 justify-content-center">
+                        <button type="button" class="btn btn-secondary px-4" @onclick="CloseSuspendModal">
+                            <i class="bi bi-x-lg me-2"></i>İptal
+                        </button>
+                        <button type="button" class="btn btn-warning px-4" @onclick="ConfirmSuspend" disabled="@isProcessing">
+                            @if (isProcessing)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                            }
+                            <i class="bi bi-pause-circle me-2"></i>Evet, Askıya Al
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Aktifleştirme Onay Modalı -->
+    @if (showReactivateModal && userToReactivate != null)
+    {
+        <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5);">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header border-0">
+                        <h5 class="modal-title text-success">
+                            <i class="bi bi-play-circle me-2"></i>Kullanıcıyı Aktifleştir
+                        </h5>
+                        <button type="button" class="btn-close" @onclick="CloseReactivateModal"></button>
+                    </div>
+                    <div class="modal-body text-center py-4">
+                        <div class="avatar bg-success text-white rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px; font-size: 2rem;">
+                            @userToReactivate.FullName[0]
+                        </div>
+                        <h5>@userToReactivate.FullName</h5>
+                        <p class="text-muted mb-1">@userToReactivate.Email</p>
+                        <span class="badge @GetRoleBadgeClass(userToReactivate.Role) mb-3">@GetRoleDisplayName(userToReactivate.Role)</span>
+                        <p class="text-muted">Bu kullanıcıyı aktifleştirmek istediğinizden emin misiniz?</p>
+                        <div class="alert alert-info mb-0">
+                            <i class="bi bi-info-circle me-2"></i>
+                            Aktifleştirilen kullanıcı tekrar sisteme giriş yapabilir.
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0 justify-content-center">
+                        <button type="button" class="btn btn-secondary px-4" @onclick="CloseReactivateModal">
+                            <i class="bi bi-x-lg me-2"></i>İptal
+                        </button>
+                        <button type="button" class="btn btn-success px-4" @onclick="ConfirmReactivate" disabled="@isProcessing">
+                            @if (isProcessing)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                            }
+                            <i class="bi bi-play-circle me-2"></i>Evet, Aktifleştir
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Silme Onay Modalı -->
+    @if (showDeleteModal && userToDelete != null)
+    {
+        <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5);">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header border-0">
+                        <h5 class="modal-title text-danger">
+                            <i class="bi bi-exclamation-triangle me-2"></i>Kullanıcıyı Sil
+                        </h5>
+                        <button type="button" class="btn-close" @onclick="CloseDeleteModal"></button>
+                    </div>
+                    <div class="modal-body text-center py-4">
+                        <div class="avatar bg-danger text-white rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px; font-size: 2rem;">
+                            @userToDelete.FullName[0]
+                        </div>
+                        <h5>@userToDelete.FullName</h5>
+                        <p class="text-muted mb-1">@userToDelete.Email</p>
+                        <span class="badge @GetRoleBadgeClass(userToDelete.Role) mb-3">@GetRoleDisplayName(userToDelete.Role)</span>
+                        <p class="text-muted">Bu kullanıcıyı silmek istediğinizden emin misiniz?</p>
+                        <div class="alert alert-warning mb-0">
+                            <i class="bi bi-exclamation-circle me-2"></i>
+                            <strong>Dikkat:</strong> Bu işlem geri alınamaz!
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0 justify-content-center">
+                        <button type="button" class="btn btn-secondary px-4" @onclick="CloseDeleteModal">
+                            <i class="bi bi-x-lg me-2"></i>İptal
+                        </button>
+                        <button type="button" class="btn btn-danger px-4" @onclick="ConfirmDelete" disabled="@isDeleting">
+                            @if (isDeleting)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                            }
+                            <i class="bi bi-trash me-2"></i>Evet, Sil
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    private List<User>? users;
+    private string? searchTerm;
+    private string? filterRole;
+    private string? filterStatus;
+    private string? message;
+    private bool isError;
+    private bool showModal;
+    private bool isEditing;
+    private User editingUser = new();
+    private string? newPassword;
+    private bool showDeleteModal;
+    private bool isDeleting;
+    private User? userToDelete;
+    private bool showSuspendModal;
+    private bool showReactivateModal;
+    private bool isProcessing;
+    private User? userToSuspend;
+    private User? userToReactivate;
+
+    private IEnumerable<User>? filteredUsers => users?.Where(u =>
+        (string.IsNullOrEmpty(searchTerm) ||
+         u.FullName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+         u.Email.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)) &&
+        (string.IsNullOrEmpty(filterRole) || u.Role.ToString() == filterRole) &&
+        (string.IsNullOrEmpty(filterStatus) || u.IsActive.ToString().ToLower() == filterStatus.ToLower())
+    );
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthService.IsAdmin)
+        {
+            await LoadUsers();
+        }
+    }
+
+    private async Task LoadUsers()
+    {
+        users = await UserService.GetAllUsersAsync();
+    }
+
+    private void ShowAddUserModal()
+    {
+        editingUser = new User();
+        newPassword = null;
+        isEditing = false;
+        showModal = true;
+    }
+
+    private void ShowEditUserModal(User user)
+    {
+        editingUser = new User
+        {
+            Id = user.Id,
+            Email = user.Email,
+            FullName = user.FullName,
+            Phone = user.Phone,
+            Address = user.Address,
+            Role = user.Role,
+            IsActive = user.IsActive
+        };
+        isEditing = true;
+        showModal = true;
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+    }
+
+    private async Task SaveUser()
+    {
+        try
+        {
+            if (isEditing)
+            {
+                var existingUser = await UserService.GetUserByIdAsync(editingUser.Id);
+                if (existingUser != null)
+                {
+                    existingUser.FullName = editingUser.FullName;
+                    existingUser.Email = editingUser.Email;
+                    existingUser.Phone = editingUser.Phone;
+                    existingUser.Address = editingUser.Address;
+                    existingUser.Role = editingUser.Role;
+                    await UserService.UpdateUserAsync(existingUser);
+                    message = "Kullanıcı başarıyla güncellendi.";
+                }
+            }
+            else
+            {
+                editingUser.PasswordHash = newPassword ?? "123456";
+                await UserService.CreateUserAsync(editingUser);
+                message = "Kullanıcı başarıyla oluşturuldu.";
+            }
+
+            isError = false;
+            showModal = false;
+            await LoadUsers();
+        }
+        catch (Exception ex)
+        {
+            message = $"Hata: {ex.Message}";
+            isError = true;
+        }
+    }
+
+    private void ShowSuspendConfirm(User user)
+    {
+        userToSuspend = user;
+        showSuspendModal = true;
+    }
+
+    private void CloseSuspendModal()
+    {
+        showSuspendModal = false;
+        userToSuspend = null;
+    }
+
+    private async Task ConfirmSuspend()
+    {
+        if (userToSuspend == null) return;
+
+        isProcessing = true;
+
+        try
+        {
+            await UserService.SuspendUserAsync(userToSuspend.Id!);
+            message = $"'{userToSuspend.FullName}' kullanıcısı askıya alındı.";
+            isError = false;
+            CloseSuspendModal();
+            await LoadUsers();
+        }
+        catch (Exception ex)
+        {
+            message = $"Hata: {ex.Message}";
+            isError = true;
+        }
+
+        isProcessing = false;
+    }
+
+    private void ShowReactivateConfirm(User user)
+    {
+        userToReactivate = user;
+        showReactivateModal = true;
+    }
+
+    private void CloseReactivateModal()
+    {
+        showReactivateModal = false;
+        userToReactivate = null;
+    }
+
+    private async Task ConfirmReactivate()
+    {
+        if (userToReactivate == null) return;
+
+        isProcessing = true;
+
+        try
+        {
+            await UserService.ReactivateUserAsync(userToReactivate.Id!);
+            message = $"'{userToReactivate.FullName}' kullanıcısı aktifleştirildi.";
+            isError = false;
+            CloseReactivateModal();
+            await LoadUsers();
+        }
+        catch (Exception ex)
+        {
+            message = $"Hata: {ex.Message}";
+            isError = true;
+        }
+
+        isProcessing = false;
+    }
+
+    private void ShowDeleteConfirm(User user)
+    {
+        userToDelete = user;
+        showDeleteModal = true;
+    }
+
+    private void CloseDeleteModal()
+    {
+        showDeleteModal = false;
+        userToDelete = null;
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (userToDelete == null) return;
+
+        isDeleting = true;
+
+        try
+        {
+            await UserService.DeleteUserAsync(userToDelete.Id!);
+            message = $"'{userToDelete.FullName}' kullanıcısı silindi.";
+            isError = false;
+            CloseDeleteModal();
+            await LoadUsers();
+        }
+        catch (Exception ex)
+        {
+            message = $"Hata: {ex.Message}";
+            isError = true;
+        }
+
+        isDeleting = false;
+    }
+
+    private string GetRoleBadgeClass(UserRole role) => role switch
+    {
+        UserRole.Admin => "bg-danger",
+        UserRole.Seller => "bg-success",
+        UserRole.Buyer => "bg-primary",
+        _ => "bg-secondary"
+    };
+
+    private string GetRoleDisplayName(UserRole role) => role switch
+    {
+        UserRole.Admin => "Admin",
+        UserRole.Seller => "Satıcı",
+        UserRole.Buyer => "Alıcı",
+        _ => "Bilinmiyor"
+    };
+}

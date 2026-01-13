@@ -1,0 +1,217 @@
+@page "/hesabim/dashboard"
+@inject AuthService AuthService
+@inject OrderService OrderService
+@inject CartService CartService
+@inject ReviewService ReviewService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<PageTitle>Hesabım - Emusell</PageTitle>
+
+@if (!AuthService.IsBuyer && !AuthService.IsAdmin)
+{
+    <div class="container py-5 text-center">
+        <i class="bi bi-shield-exclamation display-1 text-danger"></i>
+        <h2 class="mt-3">Yetkisiz Erişim</h2>
+        <p class="text-muted">Bu sayfayı görüntüleme yetkiniz yok.</p>
+        <a href="/" class="btn btn-primary">Ana Sayfaya Dön</a>
+    </div>
+}
+else
+{
+    <div class="container py-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="mb-0"><i class="bi bi-person-circle me-2"></i>Hesabım</h1>
+                <p class="text-muted mb-0">Hoş geldiniz, @AuthService.CurrentUser?.FullName</p>
+            </div>
+        </div>
+
+        <!-- İstatistik Kartları -->
+        <div class="row g-4 mb-4">
+            <div class="col-md-4">
+                <div class="card bg-primary text-white h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-white-50">Siparişlerim</h6>
+                                <h2 class="mb-0">@totalOrders</h2>
+                            </div>
+                            <i class="bi bi-box-seam display-4 opacity-50"></i>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-transparent border-0">
+                        <a href="/hesabim/siparislerim" class="text-white text-decoration-none">
+                            Detayları Gör <i class="bi bi-arrow-right"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card bg-success text-white h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-white-50">Sepetim</h6>
+                                <h2 class="mb-0">@cartItemCount ürün</h2>
+                            </div>
+                            <i class="bi bi-cart display-4 opacity-50"></i>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-transparent border-0">
+                        <a href="/sepet" class="text-white text-decoration-none">
+                            Sepete Git <i class="bi bi-arrow-right"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card bg-warning text-dark h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-dark opacity-75">Değerlendirmelerim</h6>
+                                <h2 class="mb-0">@totalReviews</h2>
+                            </div>
+                            <i class="bi bi-star display-4 opacity-50"></i>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-transparent border-0">
+                        <a href="/hesabim/degerlendirmelerim" class="text-dark text-decoration-none">
+                            Detayları Gör <i class="bi bi-arrow-right"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <!-- Hızlı İşlemler -->
+            <div class="col-md-4">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-lightning me-2"></i>Hızlı İşlemler</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-3">
+                            <a href="/urunler" class="btn btn-outline-primary">
+                                <i class="bi bi-grid me-2"></i>Ürünleri Keşfet
+                            </a>
+                            <a href="/sepet" class="btn btn-outline-success">
+                                <i class="bi bi-cart me-2"></i>Sepetim
+                            </a>
+                            <a href="/hesabim/siparislerim" class="btn btn-outline-info">
+                                <i class="bi bi-box-seam me-2"></i>Siparişlerim
+                            </a>
+                            <a href="/profil" class="btn btn-outline-secondary">
+                                <i class="bi bi-person me-2"></i>Profil Ayarları
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Son Siparişler -->
+            <div class="col-md-8">
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Son Siparişlerim</h5>
+                        <a href="/hesabim/siparislerim" class="btn btn-sm btn-outline-primary">Tümünü Gör</a>
+                    </div>
+                    <div class="card-body">
+                        @if (recentOrders?.Any() == true)
+                        {
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Sipariş No</th>
+                                            <th>Tarih</th>
+                                            <th>Tutar</th>
+                                            <th>Durum</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var order in recentOrders.Take(5))
+                                        {
+                                            <tr>
+                                                <td>@order.OrderNumber</td>
+                                                <td>@order.CreatedAt.ToString("dd.MM.yyyy")</td>
+                                                <td>@order.TotalAmount.ToString("C0", new System.Globalization.CultureInfo("tr-TR"))</td>
+                                                <td>
+                                                    <span class="badge @GetStatusBadgeClass(order.Status)">
+                                                        @GetStatusDisplayName(order.Status)
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="text-center py-4">
+                                <i class="bi bi-inbox display-4 text-muted"></i>
+                                <p class="text-muted mt-2">Henüz sipariş vermediniz</p>
+                                <a href="/urunler" class="btn btn-primary">Alışverişe Başla</a>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private int totalOrders;
+    private int cartItemCount;
+    private int totalReviews;
+    private List<Order>? recentOrders;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthService.IsBuyer || AuthService.IsAdmin)
+        {
+            await LoadDashboardData();
+        }
+    }
+
+    private async Task LoadDashboardData()
+    {
+        var userId = AuthService.CurrentUser?.Id ?? "";
+
+        recentOrders = await OrderService.GetOrdersByBuyerAsync(userId);
+        totalOrders = recentOrders?.Count ?? 0;
+
+        cartItemCount = await CartService.GetCartItemCountAsync(userId);
+
+        var reviews = await ReviewService.GetReviewsByUserAsync(userId);
+        totalReviews = reviews?.Count ?? 0;
+    }
+
+    private string GetStatusBadgeClass(OrderStatus status) => status switch
+    {
+        OrderStatus.Pending => "bg-warning",
+        OrderStatus.Confirmed => "bg-info",
+        OrderStatus.Shipped => "bg-primary",
+        OrderStatus.Delivered => "bg-success",
+        OrderStatus.Cancelled => "bg-danger",
+        OrderStatus.Refunded => "bg-secondary",
+        _ => "bg-secondary"
+    };
+
+    private string GetStatusDisplayName(OrderStatus status) => status switch
+    {
+        OrderStatus.Pending => "Beklemede",
+        OrderStatus.Confirmed => "Onaylandı",
+        OrderStatus.Shipped => "Kargoda",
+        OrderStatus.Delivered => "Teslim Edildi",
+        OrderStatus.Cancelled => "İptal",
+        OrderStatus.Refunded => "İade",
+        _ => "Bilinmiyor"
+    };
+}

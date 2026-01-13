@@ -4,70 +4,75 @@ namespace Emusell.Services;
 
 public class ThemeService
 {
-    private bool _isDarkMode = false;
+    private bool _isDarkMode;
     private IJSRuntime? _jsRuntime;
-    private const string CookieName = "emusell-theme";
-    private const int CookieExpiryDays = 365;
-
-    public event Action? OnThemeChanged;
+    private bool _initialized;
 
     public bool IsDarkMode => _isDarkMode;
+    public event Action? OnThemeChanged;
 
     public async Task InitializeAsync(IJSRuntime jsRuntime)
     {
+        if (_initialized) return;
+        
         _jsRuntime = jsRuntime;
-        await LoadThemeFromCookie();
-    }
-
-    private async Task LoadThemeFromCookie()
-    {
-        if (_jsRuntime == null) return;
-
         try
         {
-            var theme = await _jsRuntime.InvokeAsync<string>("cookieHelper.getCookie", CookieName);
-            if (!string.IsNullOrEmpty(theme))
-            {
-                _isDarkMode = theme == "dark";
-                OnThemeChanged?.Invoke();
-            }
+            var theme = await jsRuntime.InvokeAsync<string>("localStorage.getItem", "theme");
+            _isDarkMode = theme == "dark";
+            _initialized = true;
+            
+            // Apply theme to document
+            await ApplyThemeToDocument();
         }
         catch
         {
-            // Cookie okunamazsa varsayılan değer kullanılır
+            _isDarkMode = false;
         }
     }
 
-    private async Task SaveThemeToCookie()
-    {
-        if (_jsRuntime == null) return;
-
-        try
-        {
-            var theme = _isDarkMode ? "dark" : "light";
-            await _jsRuntime.InvokeVoidAsync("cookieHelper.setCookie", CookieName, theme, CookieExpiryDays);
-        }
-        catch
-        {
-            // Cookie yazılamazsa sessizce devam et
-        }
-    }
-
-    public async Task ToggleTheme()
+    public async Task ToggleThemeAsync()
     {
         _isDarkMode = !_isDarkMode;
-        await SaveThemeToCookie();
+        
+        if (_jsRuntime != null)
+        {
+            await _jsRuntime.InvokeVoidAsync("localStorage.setItem", "theme", _isDarkMode ? "dark" : "light");
+            await ApplyThemeToDocument();
+        }
+        
         OnThemeChanged?.Invoke();
     }
 
-    public async Task SetTheme(bool isDark)
+    public async Task SetDarkModeAsync(bool isDark)
     {
-        if (_isDarkMode != isDark)
+        _isDarkMode = isDark;
+        
+        if (_jsRuntime != null)
         {
-            _isDarkMode = isDark;
-            await SaveThemeToCookie();
-            OnThemeChanged?.Invoke();
+            await _jsRuntime.InvokeVoidAsync("localStorage.setItem", "theme", isDark ? "dark" : "light");
+            await ApplyThemeToDocument();
+        }
+        
+        OnThemeChanged?.Invoke();
+    }
+
+    private async Task ApplyThemeToDocument()
+    {
+        if (_jsRuntime == null) return;
+        
+        try
+        {
+            // Toggle dark-theme class on body/html
+            var script = _isDarkMode 
+                ? "document.documentElement.classList.add('dark-theme'); document.body.classList.add('dark-theme');"
+                : "document.documentElement.classList.remove('dark-theme'); document.body.classList.remove('dark-theme');";
+            
+            await _jsRuntime.InvokeVoidAsync("eval", script);
+        }
+        catch
+        {
+            // Ignore JS errors
         }
     }
 }
-

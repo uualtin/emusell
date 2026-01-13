@@ -1,0 +1,144 @@
+@page "/hesabim/siparislerim"
+@inject AuthService AuthService
+@inject OrderService OrderService
+@rendermode InteractiveServer
+
+<PageTitle>Siparişlerim - Emusell</PageTitle>
+
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="container py-5 text-center">
+        <i class="bi bi-person-x display-1 text-warning"></i>
+        <h2 class="mt-3">Giriş Yapmalısınız</h2>
+        <p class="text-muted">Siparişlerinizi görmek için giriş yapın.</p>
+        <a href="/giris" class="btn btn-primary">Giriş Yap</a>
+    </div>
+}
+else
+{
+    <div class="container py-4">
+        <h1 class="mb-4"><i class="bi bi-box-seam me-2"></i>Siparişlerim</h1>
+
+        @if (orders?.Any() == true)
+        {
+            <div class="row g-4">
+                @foreach (var order in orders)
+                {
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>@order.OrderNumber</strong>
+                                    <span class="text-muted ms-3">@order.CreatedAt.ToString("dd.MM.yyyy HH:mm")</span>
+                                </div>
+                                <span class="badge @GetStatusBadgeClass(order.Status) fs-6">
+                                    @GetStatusDisplayName(order.Status)
+                                </span>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    @foreach (var item in order.Items)
+                                    {
+                                        <div class="col-md-6 col-lg-4 mb-3">
+                                            <div class="d-flex">
+                                                <img src="@item.ProductImageUrl" class="rounded me-3" style="width: 80px; height: 80px; object-fit: cover;" onerror="this.src='https://via.placeholder.com/80'" />
+                                                <div>
+                                                    <h6 class="mb-1">@item.ProductTitle</h6>
+                                                    <p class="text-muted small mb-1">Satıcı: @item.SellerName</p>
+                                                    <p class="mb-0">
+                                                        @item.Price.ToString("C0", new System.Globalization.CultureInfo("tr-TR")) x @item.Quantity
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                            <div class="card-footer d-flex justify-content-between align-items-center">
+                                <div>
+                                    <span class="text-muted">Toplam:</span>
+                                    <strong class="fs-5 text-primary ms-2">@order.TotalAmount.ToString("C0", new System.Globalization.CultureInfo("tr-TR"))</strong>
+                                </div>
+                                <div>
+                                    <span class="badge @GetPaymentStatusBadgeClass(order.PaymentStatus) me-2">
+                                        @GetPaymentStatusDisplayName(order.PaymentStatus)
+                                    </span>
+                                    @if (order.Status == OrderStatus.Delivered)
+                                    {
+                                        <a href="/urun/@order.Items.First().ProductId" class="btn btn-sm btn-outline-warning">
+                                            <i class="bi bi-star me-1"></i>Değerlendir
+                                        </a>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="text-center py-5">
+                <i class="bi bi-inbox display-1 text-muted"></i>
+                <h3 class="mt-3 text-muted">Henüz sipariş vermediniz</h3>
+                <p class="text-muted">Hemen alışverişe başlayın!</p>
+                <a href="/urunler" class="btn btn-primary btn-lg">
+                    <i class="bi bi-grid me-2"></i>Ürünleri Keşfet
+                </a>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private List<Order>? orders;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthService.IsAuthenticated)
+        {
+            var userId = AuthService.CurrentUser?.Id ?? "";
+            orders = await OrderService.GetOrdersByBuyerAsync(userId);
+        }
+    }
+
+    private string GetStatusBadgeClass(OrderStatus status) => status switch
+    {
+        OrderStatus.Pending => "bg-warning",
+        OrderStatus.Confirmed => "bg-info",
+        OrderStatus.Shipped => "bg-primary",
+        OrderStatus.Delivered => "bg-success",
+        OrderStatus.Cancelled => "bg-danger",
+        OrderStatus.Refunded => "bg-secondary",
+        _ => "bg-secondary"
+    };
+
+    private string GetStatusDisplayName(OrderStatus status) => status switch
+    {
+        OrderStatus.Pending => "Beklemede",
+        OrderStatus.Confirmed => "Onaylandı",
+        OrderStatus.Shipped => "Kargoda",
+        OrderStatus.Delivered => "Teslim Edildi",
+        OrderStatus.Cancelled => "İptal Edildi",
+        OrderStatus.Refunded => "İade Edildi",
+        _ => "Bilinmiyor"
+    };
+
+    private string GetPaymentStatusBadgeClass(PaymentStatus status) => status switch
+    {
+        PaymentStatus.Pending => "bg-warning",
+        PaymentStatus.Completed => "bg-success",
+        PaymentStatus.Failed => "bg-danger",
+        PaymentStatus.Refunded => "bg-secondary",
+        _ => "bg-secondary"
+    };
+
+    private string GetPaymentStatusDisplayName(PaymentStatus status) => status switch
+    {
+        PaymentStatus.Pending => "Ödeme Bekliyor",
+        PaymentStatus.Completed => "Ödendi",
+        PaymentStatus.Failed => "Başarısız",
+        PaymentStatus.Refunded => "İade Edildi",
+        _ => "Bilinmiyor"
+    };
+}

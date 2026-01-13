@@ -1,0 +1,391 @@
+@page "/satici/degerlendirmeler"
+@inject AuthService AuthService
+@inject ReviewService ReviewService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<PageTitle>Değerlendirmeler - Emusell Satıcı</PageTitle>
+
+@if (!AuthService.IsSeller && !AuthService.IsAdmin)
+{
+    <div class="container py-5 text-center">
+        <i class="bi bi-shield-exclamation display-1 text-danger"></i>
+        <h2 class="mt-3">Yetkisiz Erişim</h2>
+        <p class="text-muted">Bu sayfayı görüntüleme yetkiniz yok.</p>
+        <a href="/" class="btn btn-primary">Ana Sayfaya Dön</a>
+    </div>
+}
+else
+{
+    <div class="container py-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="mb-0"><i class="bi bi-star me-2"></i>Değerlendirmelerim</h1>
+                <p class="text-muted mb-0">Ürünlerinize gelen değerlendirmeleri görün ve yanıtlayın</p>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(message))
+        {
+            <div class="alert @(isError ? "alert-danger" : "alert-success") alert-dismissible fade show">
+                @message
+                <button type="button" class="btn-close" @onclick="() => message = null"></button>
+            </div>
+        }
+
+        <!-- Puan Özeti -->
+        <div class="row g-4 mb-4">
+            <div class="col-md-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <div class="display-3 fw-bold text-primary mb-2">
+                            @averageRating.ToString("0.0")
+                        </div>
+                        <div class="mb-2">
+                            @for (int i = 1; i <= 5; i++)
+                            {
+                                <i class="bi @(i <= Math.Round(averageRating) ? "bi-star-fill text-warning" : "bi-star text-muted")"></i>
+                            }
+                        </div>
+                        <p class="text-muted mb-0">@totalReviews değerlendirme</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-8">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h6 class="mb-3">Puan Dağılımı</h6>
+                        @foreach (var item in ratingDistribution.OrderByDescending(x => x.Key))
+                        {
+                            var percentage = totalReviews > 0 ? (item.Value * 100.0 / totalReviews) : 0;
+                            <div class="d-flex align-items-center mb-2">
+                                <span class="me-2" style="width: 60px;">@item.Key yıldız</span>
+                                <div class="progress flex-grow-1" style="height: 20px;">
+                                    <div class="progress-bar bg-warning" style="width: @percentage%"></div>
+                                </div>
+                                <span class="ms-2" style="width: 40px;">@item.Value</span>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filtre -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="d-flex flex-wrap gap-2">
+                    <button class="btn @(filterType == "all" ? "btn-primary" : "btn-outline-primary") btn-sm" @onclick='() => FilterReviews("all")'>
+                        Tümü (@totalReviews)
+                    </button>
+                    <button class="btn @(filterType == "unanswered" ? "btn-warning" : "btn-outline-warning") btn-sm" @onclick='() => FilterReviews("unanswered")'>
+                        <i class="bi bi-chat-dots me-1"></i>Yanıtlanmamış (@unansweredCount)
+                    </button>
+                    <button class="btn @(filterType == "answered" ? "btn-success" : "btn-outline-success") btn-sm" @onclick='() => FilterReviews("answered")'>
+                        <i class="bi bi-chat-check me-1"></i>Yanıtlanmış (@answeredCount)
+                    </button>
+                    <div class="ms-auto">
+                        <select class="form-select form-select-sm" @bind="ratingFilter" @bind:after="ApplyFilters">
+                            <option value="0">Tüm Puanlar</option>
+                            <option value="5">5 Yıldız</option>
+                            <option value="4">4 Yıldız</option>
+                            <option value="3">3 Yıldız</option>
+                            <option value="2">2 Yıldız</option>
+                            <option value="1">1 Yıldız</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Değerlendirme Listesi -->
+        @if (filteredReviews?.Any() == true)
+        {
+            <div class="row g-4">
+                @foreach (var review in filteredReviews)
+                {
+                    <div class="col-12">
+                        <div class="card @(string.IsNullOrEmpty(review.SellerReply) ? "border-warning" : "")">
+                            <div class="card-body">
+                                <div class="row">
+                                    <!-- Ürün Bilgisi -->
+                                    <div class="col-md-3">
+                                        <div class="d-flex align-items-center">
+                                            @if (!string.IsNullOrEmpty(review.ProductImageUrl))
+                                            {
+                                                <img src="@review.ProductImageUrl" class="rounded me-2" style="width: 60px; height: 60px; object-fit: cover;" />
+                                            }
+                                            <div>
+                                                <h6 class="mb-1">@review.ProductTitle</h6>
+                                                <a href="/urun/@review.ProductId" class="small text-primary">Ürünü Görüntüle</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Değerlendirme -->
+                                    <div class="col-md-9">
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <div>
+                                                <strong>@review.UserName</strong>
+                                                <span class="text-muted ms-2">@review.CreatedAt.ToString("dd.MM.yyyy")</span>
+                                            </div>
+                                            <div>
+                                                @for (int i = 1; i <= 5; i++)
+                                                {
+                                                    <i class="bi @(i <= review.Rating ? "bi-star-fill text-warning" : "bi-star text-muted")"></i>
+                                                }
+                                            </div>
+                                        </div>
+                                        
+                                        <p class="mb-3">@review.Comment</p>
+                                        
+                                        <!-- Satıcı Yanıtı -->
+                                        @if (!string.IsNullOrEmpty(review.SellerReply))
+                                        {
+                                            <div class="bg-light rounded p-3 mb-3">
+                                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                                    <strong><i class="bi bi-shop me-2"></i>Satıcı Yanıtı</strong>
+                                                    <small class="text-muted">@review.SellerReplyDate?.ToString("dd.MM.yyyy HH:mm")</small>
+                                                </div>
+                                                <p class="mb-0">@review.SellerReply</p>
+                                            </div>
+                                        }
+                                        
+                                        <!-- İşlem Butonları -->
+                                        <div class="d-flex gap-2">
+                                            @if (string.IsNullOrEmpty(review.SellerReply))
+                                            {
+                                                <button class="btn btn-primary btn-sm" @onclick="() => ShowReplyModal(review)">
+                                                    <i class="bi bi-chat-dots me-1"></i>Yanıtla
+                                                </button>
+                                            }
+                                            else
+                                            {
+                                                <button class="btn btn-outline-primary btn-sm" @onclick="() => ShowEditReplyModal(review)">
+                                                    <i class="bi bi-pencil me-1"></i>Yanıtı Düzenle
+                                                </button>
+                                                <button class="btn btn-outline-danger btn-sm" @onclick="() => DeleteReply(review.Id)">
+                                                    <i class="bi bi-trash me-1"></i>Yanıtı Sil
+                                                </button>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="text-center py-5">
+                <i class="bi bi-chat-square-text display-1 text-muted"></i>
+                <h3 class="mt-3 text-muted">@(filterType != "all" ? "Bu filtreye uygun değerlendirme yok" : "Henüz değerlendirme yok")</h3>
+                <p class="text-muted">@(filterType != "all" ? "Diğer filtreleri deneyin." : "Ürünlerinize değerlendirme geldiğinde burada görünecek.")</p>
+            </div>
+        }
+    </div>
+
+    <!-- Yanıt Modal -->
+    @if (showModal && selectedReview != null)
+    {
+        <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5);">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">@(isEditingReply ? "Yanıtı Düzenle" : "Değerlendirmeye Yanıt Ver")</h5>
+                        <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <!-- Değerlendirme Özeti -->
+                        <div class="bg-light rounded p-3 mb-3">
+                            <div class="d-flex justify-content-between mb-2">
+                                <strong>@selectedReview.UserName</strong>
+                                <div>
+                                    @for (int i = 1; i <= 5; i++)
+                                    {
+                                        <i class="bi @(i <= selectedReview.Rating ? "bi-star-fill text-warning" : "bi-star text-muted") small"></i>
+                                    }
+                                </div>
+                            </div>
+                            <p class="mb-0 small">@selectedReview.Comment</p>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Yanıtınız</label>
+                            <textarea class="form-control" rows="4" @bind="replyText" placeholder="Müşterinize yanıt yazın..."></textarea>
+                            <small class="text-muted">Profesyonel ve nazik bir dil kullanın.</small>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseModal">İptal</button>
+                        <button type="button" class="btn btn-primary" @onclick="SaveReply" disabled="@(string.IsNullOrWhiteSpace(replyText) || isSaving)">
+                            @if (isSaving)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                            }
+                            <i class="bi bi-send me-1"></i>Yanıtı Gönder
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    private List<Review>? reviews;
+    private List<Review>? filteredReviews;
+    private double averageRating;
+    private int totalReviews;
+    private int unansweredCount;
+    private int answeredCount;
+    private Dictionary<int, int> ratingDistribution = new();
+    private string? message;
+    private bool isError;
+    private bool showModal;
+    private bool isEditingReply;
+    private bool isSaving;
+    private Review? selectedReview;
+    private string? replyText;
+    private string filterType = "all";
+    private int ratingFilter = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthService.IsSeller || AuthService.IsAdmin)
+        {
+            await LoadReviews();
+        }
+    }
+
+    private async Task LoadReviews()
+    {
+        var sellerId = AuthService.CurrentUser?.Id ?? "";
+        reviews = await ReviewService.GetReviewsBySellerAsync(sellerId);
+        averageRating = await ReviewService.GetSellerAverageRatingAsync(sellerId);
+        totalReviews = reviews?.Count ?? 0;
+        ratingDistribution = await ReviewService.GetSellerRatingDistributionAsync(sellerId);
+        
+        unansweredCount = reviews?.Count(r => string.IsNullOrEmpty(r.SellerReply)) ?? 0;
+        answeredCount = reviews?.Count(r => !string.IsNullOrEmpty(r.SellerReply)) ?? 0;
+        
+        ApplyFilters();
+    }
+
+    private void FilterReviews(string type)
+    {
+        filterType = type;
+        ApplyFilters();
+    }
+
+    private void ApplyFilters()
+    {
+        if (reviews == null)
+        {
+            filteredReviews = null;
+            return;
+        }
+
+        var result = reviews.AsEnumerable();
+
+        // Yanıt durumu filtresi
+        if (filterType == "unanswered")
+        {
+            result = result.Where(r => string.IsNullOrEmpty(r.SellerReply));
+        }
+        else if (filterType == "answered")
+        {
+            result = result.Where(r => !string.IsNullOrEmpty(r.SellerReply));
+        }
+
+        // Puan filtresi
+        if (ratingFilter > 0)
+        {
+            result = result.Where(r => r.Rating == ratingFilter);
+        }
+
+        filteredReviews = result.ToList();
+    }
+
+    private void ShowReplyModal(Review review)
+    {
+        selectedReview = review;
+        replyText = "";
+        isEditingReply = false;
+        showModal = true;
+    }
+
+    private void ShowEditReplyModal(Review review)
+    {
+        selectedReview = review;
+        replyText = review.SellerReply;
+        isEditingReply = true;
+        showModal = true;
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+        selectedReview = null;
+        replyText = null;
+    }
+
+    private async Task SaveReply()
+    {
+        if (selectedReview == null || string.IsNullOrWhiteSpace(replyText)) return;
+
+        isSaving = true;
+
+        try
+        {
+            bool success;
+            if (isEditingReply)
+            {
+                success = await ReviewService.UpdateSellerReplyAsync(selectedReview.Id, replyText);
+                message = success ? "Yanıt güncellendi." : "Yanıt güncellenirken bir hata oluştu.";
+            }
+            else
+            {
+                success = await ReviewService.AddSellerReplyAsync(selectedReview.Id, replyText);
+                message = success ? "Yanıt gönderildi." : "Yanıt gönderilirken bir hata oluştu.";
+            }
+
+            isError = !success;
+            
+            if (success)
+            {
+                await LoadReviews();
+                CloseModal();
+            }
+        }
+        catch (Exception ex)
+        {
+            message = $"Hata: {ex.Message}";
+            isError = true;
+        }
+
+        isSaving = false;
+    }
+
+    private async Task DeleteReply(string reviewId)
+    {
+        try
+        {
+            var success = await ReviewService.DeleteSellerReplyAsync(reviewId);
+            message = success ? "Yanıt silindi." : "Yanıt silinirken bir hata oluştu.";
+            isError = !success;
+            
+            if (success)
+            {
+                await LoadReviews();
+            }
+        }
+        catch (Exception ex)
+        {
+            message = $"Hata: {ex.Message}";
+            isError = true;
+        }
+    }
+}

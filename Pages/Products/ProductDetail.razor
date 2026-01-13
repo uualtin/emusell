@@ -1,214 +1,379 @@
-@page "/urunler/{Id:int}"
-@using Emusell.Models
-@using Emusell.Services
-@using Emusell.Components.Shared
+@page "/urun/{ProductId}"
 @inject ProductService ProductService
+@inject CartService CartService
+@inject ReviewService ReviewService
+@inject AuthService AuthService
 @inject NavigationManager Navigation
+@rendermode InteractiveServer
 
 <PageTitle>@(product?.Title ?? "Ürün Detayı") - Emusell</PageTitle>
 
-@if (isLoading)
+@if (product == null)
 {
-    <div class="container py-5">
-        <LoadingSpinner Message="Ürün detayları yükleniyor..." />
-    </div>
-}
-else if (product == null)
-{
-    <div class="container py-5">
-        <EmptyState 
-            Icon="bi-exclamation-triangle"
-            Title="Ürün Bulunamadı"
-            Message="Aradığınız ürün bulunamadı veya kaldırılmış olabilir."
-            ActionText="Ürünlere Dön"
-            ActionLink="/urunler" />
+    <div class="container py-5 text-center">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Yükleniyor...</span>
+        </div>
+        <p class="mt-3 text-muted">Ürün yükleniyor...</p>
     </div>
 }
 else
 {
-    <div class="container py-5">
-        <!-- Breadcrumb -->
+    <div class="container py-4">
+        @if (!string.IsNullOrEmpty(message))
+        {
+            <div class="alert @(isError ? "alert-danger" : "alert-success") alert-dismissible fade show">
+                @message
+                <button type="button" class="btn-close" @onclick="() => message = null"></button>
+            </div>
+        }
+
         <nav aria-label="breadcrumb" class="mb-4">
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href="/">Ana Sayfa</a></li>
                 <li class="breadcrumb-item"><a href="/urunler">Ürünler</a></li>
-                <li class="breadcrumb-item"><a href="/kategoriler/@product.CategoryName.ToLower()">@product.CategoryName</a></li>
-                <li class="breadcrumb-item active" aria-current="page">@product.Title</li>
+                <li class="breadcrumb-item active">@product.Title</li>
             </ol>
         </nav>
 
-        <div class="row g-4">
-            <!-- Images -->
-            <div class="col-12 col-lg-6">
-                <div class="card shadow-sm">
-                    <img src="@currentImage" 
-                         class="card-img-top" 
-                         alt="@product.Title"
-                         style="height: 500px; object-fit: cover;" />
+        <div class="row">
+            <!-- Ürün Görseli -->
+            <div class="col-lg-6 mb-4">
+                <div class="card">
+                    <img src="@product.ImageUrl" class="card-img-top" style="height: 400px; object-fit: contain;" onerror="this.src='https://via.placeholder.com/600x400'" />
                 </div>
-                
-                @if (product.Images.Count > 1)
+                @if (product.Images?.Any() == true)
                 {
                     <div class="row g-2 mt-2">
-                        @foreach (var image in product.Images.Take(4))
+                        @foreach (var img in product.Images.Take(4))
                         {
                             <div class="col-3">
-                                <img src="@image" 
-                                     class="img-fluid rounded shadow-sm @(image == currentImage ? "border border-primary border-3" : "")" 
-                                     alt="Ürün görseli"
-                                     style="height: 100px; object-fit: cover; cursor: pointer;"
-                                     @onclick="() => currentImage = image" />
+                                <img src="@img" class="img-fluid rounded cursor-pointer" style="height: 80px; object-fit: cover;" onerror="this.src='https://via.placeholder.com/100'" @onclick="() => product.ImageUrl = img" />
                             </div>
                         }
                     </div>
                 }
             </div>
 
-            <!-- Details -->
-            <div class="col-12 col-lg-6">
-                <div class="mb-3">
-                    <span class="badge bg-primary fs-6">@product.CategoryName</span>
-                    <span class="badge bg-@GetConditionBadgeClass() ms-2 fs-6">@GetConditionText()</span>
+            <!-- Ürün Bilgileri -->
+            <div class="col-lg-6">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <span class="badge bg-secondary">@GetConditionText(product.Condition)</span>
+                    <span class="text-muted">
+                        <i class="bi bi-eye me-1"></i>@product.ViewCount görüntülenme
+                    </span>
                 </div>
 
-                <h1 class="display-5 mb-3">@product.Title</h1>
+                <h1 class="mb-3">@product.Title</h1>
 
-                <div class="d-flex align-items-baseline mb-4">
-                    <span class="display-4 text-primary fw-bold">@product.Price.ToString("N0") ₺</span>
+                <div class="d-flex align-items-center mb-3">
+                    <span class="fs-2 fw-bold text-primary me-3">
+                        @product.Price.ToString("C0", new System.Globalization.CultureInfo("tr-TR"))
+                    </span>
+                    @if (product.IsSold)
+                    {
+                        <span class="badge bg-danger fs-6">SATILDI</span>
+                    }
                 </div>
 
                 <div class="mb-4">
-                    <h5 class="mb-3">
-                        <i class="bi bi-card-text me-2"></i>Açıklama
-                    </h5>
-                    <p class="text-muted fs-6">@product.Description</p>
+                    <p class="text-muted mb-2">
+                        <i class="bi bi-geo-alt me-2"></i>@product.Location
+                    </p>
+                    <p class="text-muted mb-2">
+                        <i class="bi bi-tag me-2"></i>@product.CategoryName
+                    </p>
+                    <p class="text-muted mb-0">
+                        <i class="bi bi-calendar me-2"></i>@product.CreatedAt.ToString("dd MMMM yyyy", new System.Globalization.CultureInfo("tr-TR"))
+                    </p>
                 </div>
 
-                <div class="card bg-light mb-4 shadow-sm">
+                <hr />
+
+                <h5>Açıklama</h5>
+                <p class="text-muted">@product.Description</p>
+
+                <hr />
+
+                <!-- Satıcı Bilgisi -->
+                <div class="card bg-light mb-4">
                     <div class="card-body">
-                        <h6 class="card-title mb-3">
-                            <i class="bi bi-person-circle me-2"></i>Satıcı Bilgileri
-                        </h6>
-                        <div class="d-flex align-items-center mb-3">
-                            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" 
-                                 style="width: 50px; height: 50px; font-size: 1.5rem;">
-                                @product.SellerName.Substring(0, 1).ToUpper()
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div class="d-flex align-items-center">
+                                <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 50px; height: 50px;">
+                                    @(string.IsNullOrEmpty(product.SellerName) ? "?" : product.SellerName[0].ToString())
+                                </div>
+                                <div>
+                                    <h6 class="mb-0">@product.SellerName</h6>
+                                    <small class="text-muted">Satıcı</small>
+                                </div>
                             </div>
-                            <div>
-                                <div class="fw-bold">@product.SellerName</div>
-                                <small class="text-muted">
-                                    <i class="bi bi-geo-alt me-1"></i>@product.Location
-                                </small>
+                            <div class="text-end">
+                                <div class="d-flex align-items-center justify-content-end mb-1">
+                                    <span class="fw-bold text-warning me-1">@sellerRating.ToString("0.0")</span>
+                                    @for (int i = 1; i <= 5; i++)
+                                    {
+                                        <i class="bi @(i <= Math.Round(sellerRating) ? "bi-star-fill text-warning" : "bi-star text-muted") small"></i>
+                                    }
+                                </div>
+                                <small class="text-muted">@sellerReviewCount değerlendirme</small>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="d-grid gap-2 mb-4">
-                    <button class="btn btn-primary btn-lg">
-                        <i class="bi bi-chat-dots me-2"></i>Satıcıyla İletişime Geç
-                    </button>
-                    <button class="btn btn-outline-secondary">
-                        <i class="bi bi-heart me-2"></i>Favorilere Ekle
-                    </button>
-                </div>
+                <!-- İşlem Butonları -->
+                @if (!product.IsSold)
+                {
+                    <div class="d-grid gap-2">
+                        @if (AuthService.IsAuthenticated && AuthService.IsBuyer)
+                        {
+                            <button class="btn btn-primary btn-lg" @onclick="AddToCart" disabled="@isAddingToCart">
+                                @if (isAddingToCart)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                <i class="bi bi-cart-plus me-2"></i>Sepete Ekle
+                            </button>
+                            <a href="/odeme" class="btn btn-success btn-lg">
+                                <i class="bi bi-lightning me-2"></i>Hemen Satın Al
+                            </a>
+                        }
+                        else if (!AuthService.IsAuthenticated)
+                        {
+                            <a href="/giris" class="btn btn-primary btn-lg">
+                                <i class="bi bi-box-arrow-in-right me-2"></i>Satın Almak İçin Giriş Yapın
+                            </a>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
 
-                <div class="card bg-white border-0">
-                    <div class="card-body">
-                        <div class="row text-center">
-                            <div class="col-6 border-end">
-                                <div class="text-muted small mb-1">
-                                    <i class="bi bi-eye me-1"></i>Görüntülenme
+        <!-- Değerlendirmeler -->
+        <div class="card mt-5">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-star me-2"></i>Değerlendirmeler (@reviews?.Count)</h5>
+                @if (AuthService.IsAuthenticated && AuthService.IsBuyer && !hasUserReviewed)
+                {
+                    <button class="btn btn-sm btn-outline-primary" @onclick="ShowReviewModal">
+                        <i class="bi bi-plus me-1"></i>Değerlendirme Yap
+                    </button>
+                }
+            </div>
+            <div class="card-body">
+                @if (reviews?.Any() == true)
+                {
+                    @foreach (var review in reviews)
+                    {
+                        <div class="mb-4 pb-4 border-bottom">
+                            <div class="d-flex">
+                                <div class="bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 45px; height: 45px; flex-shrink: 0;">
+                                    @(string.IsNullOrEmpty(review.UserName) ? "?" : review.UserName[0].ToString())
                                 </div>
-                                <div class="h5 mb-0">@product.ViewCount</div>
+                                <div class="flex-grow-1">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <strong>@review.UserName</strong>
+                                            <div class="d-flex mt-1">
+                                                @for (int i = 1; i <= 5; i++)
+                                                {
+                                                    <i class="bi @(i <= review.Rating ? "bi-star-fill text-warning" : "bi-star text-muted") small"></i>
+                                                }
+                                            </div>
+                                        </div>
+                                        <small class="text-muted">@review.CreatedAt.ToString("dd.MM.yyyy")</small>
+                                    </div>
+                                    <p class="mt-2 mb-0 text-muted">@review.Comment</p>
+                                </div>
                             </div>
-                            <div class="col-6">
-                                <div class="text-muted small mb-1">
-                                    <i class="bi bi-clock me-1"></i>İlan Tarihi
+                            
+                            @* Satıcı Yanıtı *@
+                            @if (!string.IsNullOrEmpty(review.SellerReply))
+                            {
+                                <div class="ms-5 mt-3 p-3 bg-light rounded">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <strong class="text-primary"><i class="bi bi-shop me-2"></i>Satıcı Yanıtı</strong>
+                                        <small class="text-muted">@review.SellerReplyDate?.ToString("dd.MM.yyyy")</small>
+                                    </div>
+                                    <p class="mb-0">@review.SellerReply</p>
                                 </div>
-                                <div class="h6 mb-0">@product.CreatedAt.ToString("dd MMM yyyy")</div>
+                            }
+                        </div>
+                    }
+                }
+                else
+                {
+                    <div class="text-center py-4">
+                        <i class="bi bi-chat-left-text display-4 text-muted"></i>
+                        <p class="text-muted mt-2">Henüz değerlendirme yapılmamış.</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Değerlendirme Modal -->
+    @if (showReviewModal)
+    {
+        <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5);">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Ürünü Değerlendir</h5>
+                        <button type="button" class="btn-close" @onclick="CloseReviewModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3 text-center">
+                            <label class="form-label d-block">Puanınız</label>
+                            <div class="d-flex justify-content-center gap-2">
+                                @for (int i = 1; i <= 5; i++)
+                                {
+                                    var rating = i;
+                                    <button type="button" class="btn btn-lg p-1" @onclick="() => newReview.Rating = rating">
+                                        <i class="bi @(rating <= newReview.Rating ? "bi-star-fill text-warning" : "bi-star text-muted") fs-2"></i>
+                                    </button>
+                                }
                             </div>
                         </div>
+                        <div class="mb-3">
+                            <label class="form-label">Yorumunuz</label>
+                            <textarea class="form-control" rows="4" @bind="newReview.Comment" placeholder="Ürün hakkındaki görüşlerinizi yazın..."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseReviewModal">İptal</button>
+                        <button type="button" class="btn btn-primary" @onclick="SubmitReview">
+                            <i class="bi bi-check-lg me-2"></i>Değerlendirmeyi Gönder
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
-
-        <!-- Similar Products -->
-        @if (similarProducts != null && similarProducts.Any())
-        {
-            <div class="mt-5">
-                <h3 class="mb-4">
-                    <i class="bi bi-grid me-2"></i>Benzer Ürünler
-                </h3>
-                <div class="row g-4">
-                    @foreach (var similarProduct in similarProducts.Take(4))
-                    {
-                        <div class="col-12 col-sm-6 col-lg-3">
-                            <ProductCard Product="@similarProduct" />
-                        </div>
-                    }
-                </div>
-            </div>
-        }
-    </div>
+    }
 }
 
 @code {
     [Parameter]
-    public int Id { get; set; }
+    public string? ProductId { get; set; }
 
     private Product? product;
-    private List<Product>? similarProducts;
-    private bool isLoading = true;
-    private string currentImage = string.Empty;
+    private List<Review>? reviews;
+    private string? message;
+    private bool isError;
+    private bool isAddingToCart;
+    private bool showReviewModal;
+    private bool hasUserReviewed;
+    private Review newReview = new() { Rating = 5 };
+    private double sellerRating;
+    private int sellerReviewCount;
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadProduct();
-    }
-
-    protected override async Task OnParametersSetAsync()
-    {
-        if (product?.Id != Id)
+        if (!string.IsNullOrEmpty(ProductId))
         {
-            await LoadProduct();
+            product = await ProductService.GetProductByIdAsync(ProductId);
+            if (product != null)
+            {
+                await LoadReviews();
+                await LoadSellerRating();
+            }
         }
     }
 
-    private async Task LoadProduct()
+    private async Task LoadSellerRating()
     {
-        isLoading = true;
-        
-        product = await ProductService.GetProductByIdAsync(Id);
-        
+        if (product != null && !string.IsNullOrEmpty(product.SellerId))
+        {
+            sellerRating = await ReviewService.GetSellerAverageRatingAsync(product.SellerId);
+            sellerReviewCount = await ReviewService.GetSellerReviewCountAsync(product.SellerId);
+        }
+    }
+
+    private async Task LoadReviews()
+    {
         if (product != null)
         {
-            currentImage = product.ImageUrl;
-            similarProducts = await ProductService.GetProductsByCategoryAsync(product.CategoryId);
-            similarProducts = similarProducts.Where(p => p.Id != product.Id).ToList();
+            reviews = await ReviewService.GetReviewsByProductAsync(product.Id);
+
+            if (AuthService.IsAuthenticated)
+            {
+                var userReview = await ReviewService.GetUserReviewForProductAsync(AuthService.CurrentUser?.Id ?? "", product.Id);
+                hasUserReviewed = userReview != null;
+            }
         }
-        
-        isLoading = false;
     }
 
-    private string GetConditionBadgeClass() => product?.Condition switch
+    private async Task AddToCart()
     {
-        ProductCondition.Yeni => "success",
-        ProductCondition.SıfırGibi => "info",
-        ProductCondition.Iyi => "primary",
-        ProductCondition.Orta => "warning",
-        ProductCondition.Kullanilmis => "secondary",
-        _ => "secondary"
-    };
+        if (!AuthService.IsAuthenticated || product == null) return;
 
-    private string GetConditionText() => product?.Condition switch
+        isAddingToCart = true;
+
+        var cartItem = new CartItem
+        {
+            ProductId = product.Id,
+            ProductTitle = product.Title,
+            ProductImageUrl = product.ImageUrl,
+            Price = product.Price,
+            Quantity = 1,
+            SellerId = product.SellerId,
+            SellerName = product.SellerName
+        };
+
+        await CartService.AddToCartAsync(AuthService.CurrentUser?.Id ?? "", cartItem);
+        message = "Ürün sepete eklendi!";
+        isError = false;
+
+        isAddingToCart = false;
+    }
+
+    private void ShowReviewModal()
+    {
+        newReview = new Review { Rating = 5 };
+        showReviewModal = true;
+    }
+
+    private void CloseReviewModal()
+    {
+        showReviewModal = false;
+    }
+
+    private async Task SubmitReview()
+    {
+        if (product == null || string.IsNullOrEmpty(newReview.Comment)) return;
+
+        try
+        {
+            newReview.ProductId = product.Id ?? "";
+            newReview.ProductTitle = product.Title;
+            newReview.ProductImageUrl = product.ImageUrl;
+            newReview.SellerId = product.SellerId;
+            newReview.SellerName = product.SellerName;
+            newReview.UserId = AuthService.CurrentUser?.Id ?? "";
+            newReview.UserName = AuthService.CurrentUser?.FullName ?? "";
+
+            await ReviewService.CreateReviewAsync(newReview);
+            message = "Değerlendirmeniz kaydedildi!";
+            isError = false;
+            showReviewModal = false;
+            hasUserReviewed = true;
+            await LoadReviews();
+        }
+        catch (Exception ex)
+        {
+            message = $"Hata: {ex.Message}";
+            isError = true;
+        }
+    }
+
+    private string GetConditionText(ProductCondition condition) => condition switch
     {
         ProductCondition.Yeni => "Yeni",
-        ProductCondition.SıfırGibi => "Sıfır Gibi",
+        ProductCondition.SifirGibi => "Sıfır Gibi",
         ProductCondition.Iyi => "İyi",
         ProductCondition.Orta => "Orta",
         ProductCondition.Kullanilmis => "Kullanılmış",
-        _ => ""
+        _ => "Bilinmiyor"
     };
 }

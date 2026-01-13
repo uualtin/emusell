@@ -1,164 +1,304 @@
 @page "/urunler"
-@using Emusell.Models
-@using Emusell.Services
-@using Emusell.Components.Shared
 @inject ProductService ProductService
 @inject CategoryService CategoryService
+@rendermode InteractiveServer
 
-<PageTitle>Tüm Ürünler - Emusell</PageTitle>
+<PageTitle>Ürünler - Emusell</PageTitle>
 
-<div class="container py-5">
-    <!-- Header -->
-    <div class="row mb-4">
-        <div class="col-12 col-md-6">
-            <h1 class="display-6">Tüm Ürünler</h1>
-            @if (filteredProducts != null)
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="mb-0"><i class="bi bi-grid me-2"></i>Tüm Ürünler</h1>
+            <p class="text-muted mb-0">İkinci el ürünleri keşfedin</p>
+        </div>
+    </div>
+
+    <!-- Filtreler -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row g-3 align-items-center">
+                <div class="col-md-4">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="text" class="form-control" placeholder="Ürün ara..." @bind="searchTerm" @bind:event="oninput" @onkeyup="SearchProducts" />
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select" @bind="selectedMainCategory" @bind:after="OnMainCategoryFilterChanged">
+                        <option value="">Ana Kategori</option>
+                        @if (mainCategories != null)
+                        {
+                            @foreach (var category in mainCategories)
+                            {
+                                <option value="@category.Id">@category.Name</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select" @bind="selectedSubCategory" @bind:after="FilterProducts" disabled="@(subCategories == null || !subCategories.Any())">
+                        <option value="">@(subCategories?.Any() == true ? "Alt Kategori" : "Önce ana kategori seçin")</option>
+                        @if (subCategories != null)
+                        {
+                            @foreach (var category in subCategories)
+                            {
+                                <option value="@category.Id">@category.Name</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select class="form-select" @bind="sortBy" @bind:after="SortProducts">
+                        <option value="newest">En Yeni</option>
+                        <option value="price_low">Fiyat (Düşük)</option>
+                        <option value="price_high">Fiyat (Yüksek)</option>
+                        <option value="popular">Popüler</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Aktif Filtreler -->
+            @if (!string.IsNullOrEmpty(selectedMainCategory) || !string.IsNullOrEmpty(selectedSubCategory))
             {
-                <p class="text-muted">@filteredProducts.Count ürün bulundu</p>
+                <div class="mt-3 d-flex flex-wrap gap-2 align-items-center">
+                    <span class="text-muted small">Filtreler:</span>
+                    @if (!string.IsNullOrEmpty(selectedMainCategory))
+                    {
+                        var mainCat = mainCategories?.FirstOrDefault(c => c.Id == selectedMainCategory);
+                        <span class="badge bg-primary d-flex align-items-center gap-1">
+                            @mainCat?.Name
+                            <button type="button" class="btn-close btn-close-white ms-1" style="font-size: 0.6rem;" @onclick="ClearMainCategory"></button>
+                        </span>
+                    }
+                    @if (!string.IsNullOrEmpty(selectedSubCategory))
+                    {
+                        var subCat = subCategories?.FirstOrDefault(c => c.Id == selectedSubCategory);
+                        <span class="badge bg-secondary d-flex align-items-center gap-1">
+                            @subCat?.Name
+                            <button type="button" class="btn-close btn-close-white ms-1" style="font-size: 0.6rem;" @onclick="ClearSubCategory"></button>
+                        </span>
+                    }
+                    <button class="btn btn-link btn-sm text-danger p-0" @onclick="ClearAllFilters">Tümünü Temizle</button>
+                </div>
             }
         </div>
-        <div class="col-12 col-md-6 text-md-end">
-            <NavLink class="btn btn-primary" href="/urun-ekle">
-                <i class="bi bi-plus-circle me-2"></i>Ürün Ekle
-            </NavLink>
-        </div>
     </div>
 
-    <!-- Search and Filter -->
-    <div class="row mb-4">
-        <div class="col-12 col-md-8">
-            <div class="input-group">
-                <span class="input-group-text">
-                    <i class="bi bi-search"></i>
-                </span>
-                <input type="text" 
-                       class="form-control" 
-                       placeholder="Ürün ara..." 
-                       @bind="searchTerm"
-                       @bind:event="oninput"
-                       @onkeyup="HandleSearch" />
-                @if (!string.IsNullOrWhiteSpace(searchTerm))
-                {
-                    <button class="btn btn-outline-secondary" type="button" @onclick="ClearSearch">
-                        <i class="bi bi-x-lg"></i>
-                    </button>
-                }
-            </div>
-        </div>
-        <div class="col-12 col-md-4 mt-2 mt-md-0">
-            <select class="form-select" @onchange="HandleCategoryFilter">
-                <option value="0">Tüm Kategoriler</option>
-                @if (categories != null)
-                {
-                    @foreach (var category in categories)
-                    {
-                        <option value="@category.Id">@category.Name</option>
-                    }
-                }
-            </select>
-        </div>
-    </div>
-
-    <!-- Products Grid -->
+    <!-- Ürün Listesi -->
     @if (isLoading)
     {
-        <LoadingSpinner Message="Ürünler yükleniyor..." />
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Yükleniyor...</span>
+            </div>
+            <p class="mt-3 text-muted">Ürünler yükleniyor...</p>
+        </div>
     }
-    else if (filteredProducts == null || !filteredProducts.Any())
+    else if (filteredProducts?.Any() == true)
     {
-        <EmptyState 
-            Icon="bi-box-seam"
-            Title="Ürün Bulunamadı"
-            Message="Aradığınız kriterlere uygun ürün bulunmuyor."
-            ActionText="Filtreleri Temizle"
-            ActionLink="/urunler" />
-    }
-    else
-    {
+        <p class="text-muted mb-3">@filteredProducts.Count ürün bulundu</p>
         <div class="row g-4">
             @foreach (var product in filteredProducts)
             {
                 <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
-                    <ProductCard Product="@product" />
+                    <div class="card h-100 product-card">
+                        <a href="/urun/@product.Id" class="text-decoration-none">
+                            <div class="position-relative">
+                                <img src="@product.ImageUrl" class="card-img-top" style="height: 200px; object-fit: cover;" onerror="this.src='https://via.placeholder.com/400x200'" />
+                                <span class="position-absolute top-0 end-0 m-2 badge bg-secondary">@GetConditionText(product.Condition)</span>
+                            </div>
+                            <div class="card-body">
+                                <h6 class="card-title text-dark">@product.Title</h6>
+                                <p class="card-text text-muted small mb-2">
+                                    <i class="bi bi-tag me-1"></i>@product.CategoryName
+                                </p>
+                                <p class="card-text text-muted small mb-2">
+                                    <i class="bi bi-geo-alt me-1"></i>@product.Location
+                                </p>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="fs-5 fw-bold text-primary">
+                                        @product.Price.ToString("C0", new System.Globalization.CultureInfo("tr-TR"))
+                                    </span>
+                                    <small class="text-muted">
+                                        <i class="bi bi-eye me-1"></i>@product.ViewCount
+                                    </small>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
                 </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="text-center py-5">
+            <i class="bi bi-inbox display-1 text-muted"></i>
+            <h3 class="mt-3 text-muted">Ürün bulunamadı</h3>
+            <p class="text-muted">Arama kriterlerinize uygun ürün bulunamadı.</p>
+            @if (!string.IsNullOrEmpty(selectedMainCategory) || !string.IsNullOrEmpty(selectedSubCategory))
+            {
+                <button class="btn btn-outline-primary" @onclick="ClearAllFilters">Filtreleri Temizle</button>
             }
         </div>
     }
 </div>
 
+<style>
+    .product-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .product-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+</style>
+
 @code {
     private List<Product>? products;
     private List<Product>? filteredProducts;
-    private List<Category>? categories;
+    private List<Category>? mainCategories;
+    private List<Category>? subCategories;
+    private List<Category>? allSubCategories;
+    private string? searchTerm;
+    private string? selectedMainCategory;
+    private string? selectedSubCategory;
+    private string sortBy = "newest";
     private bool isLoading = true;
-    private string searchTerm = string.Empty;
-    private int selectedCategoryId = 0;
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadData();
+        mainCategories = await CategoryService.GetMainCategoriesAsync();
+        allSubCategories = await CategoryService.GetAllSubcategoriesAsync();
+        await LoadProducts();
     }
 
-    private async Task LoadData()
+    private async Task LoadProducts()
     {
         isLoading = true;
-        
-        var productsTask = ProductService.GetAllProductsAsync();
-        var categoriesTask = CategoryService.GetAllCategoriesAsync();
-        
-        await Task.WhenAll(productsTask, categoriesTask);
-        
-        products = productsTask.Result;
-        categories = categoriesTask.Result;
+        products = await ProductService.GetAllProductsAsync();
         filteredProducts = products;
-        
+        SortProducts();
         isLoading = false;
     }
 
-    private async Task HandleSearch()
+    private async Task OnMainCategoryFilterChanged()
     {
-        await ApplyFilters();
-    }
-
-    private async Task HandleCategoryFilter(ChangeEventArgs e)
-    {
-        selectedCategoryId = int.Parse(e.Value?.ToString() ?? "0");
-        await ApplyFilters();
-    }
-
-    private async Task ClearSearch()
-    {
-        searchTerm = string.Empty;
-        await ApplyFilters();
-    }
-
-    private async Task ApplyFilters()
-    {
-        await Task.Delay(200); // Debounce effect
+        selectedSubCategory = null;
         
-        if (products == null) return;
+        if (!string.IsNullOrEmpty(selectedMainCategory))
+        {
+            subCategories = await CategoryService.GetSubcategoriesAsync(selectedMainCategory);
+        }
+        else
+        {
+            subCategories = null;
+        }
+        
+        FilterProducts();
+    }
 
-        filteredProducts = products;
+    private void ClearMainCategory()
+    {
+        selectedMainCategory = null;
+        selectedSubCategory = null;
+        subCategories = null;
+        FilterProducts();
+    }
 
-        // Search filter
+    private void ClearSubCategory()
+    {
+        selectedSubCategory = null;
+        FilterProducts();
+    }
+
+    private void ClearAllFilters()
+    {
+        selectedMainCategory = null;
+        selectedSubCategory = null;
+        subCategories = null;
+        searchTerm = null;
+        FilterProducts();
+    }
+
+    private async Task SearchProducts()
+    {
+        if (string.IsNullOrWhiteSpace(searchTerm))
+        {
+            filteredProducts = products;
+        }
+        else
+        {
+            filteredProducts = await ProductService.SearchProductsAsync(searchTerm);
+        }
+        ApplyFilters();
+    }
+
+    private void FilterProducts()
+    {
+        ApplyFilters();
+    }
+
+    private void ApplyFilters()
+    {
+        var result = products ?? new List<Product>();
+
+        // Ana kategori filtresi
+        if (!string.IsNullOrEmpty(selectedMainCategory))
+        {
+            // Alt kategori seçilmişse
+            if (!string.IsNullOrEmpty(selectedSubCategory))
+            {
+                result = result.Where(p => p.CategoryId == selectedSubCategory).ToList();
+            }
+            else
+            {
+                // Sadece ana kategori seçili - hem ana kategorideki hem alt kategorilerdeki ürünleri göster
+                var subCategoryIds = allSubCategories?
+                    .Where(c => c.ParentCategoryId == selectedMainCategory)
+                    .Select(c => c.Id)
+                    .ToList() ?? new List<string>();
+                
+                result = result.Where(p => 
+                    p.CategoryId == selectedMainCategory || 
+                    subCategoryIds.Contains(p.CategoryId)
+                ).ToList();
+            }
+        }
+
         if (!string.IsNullOrWhiteSpace(searchTerm))
         {
-            var term = searchTerm.ToLower();
-            filteredProducts = filteredProducts
-                .Where(p => p.Title.ToLower().Contains(term) || 
-                           p.Description.ToLower().Contains(term) ||
-                           p.CategoryName.ToLower().Contains(term))
-                .ToList();
+            result = result.Where(p =>
+                p.Title.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                p.Description.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)
+            ).ToList();
         }
 
-        // Category filter
-        if (selectedCategoryId > 0)
-        {
-            filteredProducts = filteredProducts
-                .Where(p => p.CategoryId == selectedCategoryId)
-                .ToList();
-        }
-
-        StateHasChanged();
+        filteredProducts = result;
+        SortProducts();
     }
+
+    private void SortProducts()
+    {
+        if (filteredProducts == null) return;
+
+        filteredProducts = sortBy switch
+        {
+            "newest" => filteredProducts.OrderByDescending(p => p.CreatedAt).ToList(),
+            "price_low" => filteredProducts.OrderBy(p => p.Price).ToList(),
+            "price_high" => filteredProducts.OrderByDescending(p => p.Price).ToList(),
+            "popular" => filteredProducts.OrderByDescending(p => p.ViewCount).ToList(),
+            _ => filteredProducts
+        };
+    }
+
+    private string GetConditionText(ProductCondition condition) => condition switch
+    {
+        ProductCondition.Yeni => "Yeni",
+        ProductCondition.SifirGibi => "Sıfır Gibi",
+        ProductCondition.Iyi => "İyi",
+        ProductCondition.Orta => "Orta",
+        ProductCondition.Kullanilmis => "Kullanılmış",
+        _ => "Bilinmiyor"
+    };
 }

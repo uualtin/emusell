@@ -1,248 +1,237 @@
-﻿@* Navbar Component - Emusell *@
+﻿@inject NavigationManager Navigation
+@implements IDisposable
 
-<nav class="navbar navbar-expand-lg navbar-emusell sticky-top" role="navigation" aria-label="Ana navigasyon">
+<nav class="navbar navbar-expand-lg navbar-emusell sticky-top">
     <div class="container">
-        <!-- Logo -->
         <NavLink class="navbar-brand" href="/" Match="NavLinkMatch.All">
-            <span class="fs-4 fw-bold">Emusell</span>
+            <i class="bi bi-shop me-2"></i>Emusell
         </NavLink>
 
-        <!-- Mobile Toggle -->
-        <button class="navbar-toggler" type="button" @onclick="ToggleOffcanvas" 
-                aria-controls="offcanvasNavbar" aria-label="Menüyü aç/kapat">
+        <button class="navbar-toggler" type="button" @onclick="ToggleMobileMenu">
             <span class="navbar-toggler-icon"></span>
         </button>
 
-        <!-- Desktop Nav -->
-        <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav me-auto">
-                <!-- Ana Sayfa -->
+        <div class="navbar-collapse @(isMobileMenuOpen ? "show" : "collapse")" id="navbarNav">
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                 <li class="nav-item">
                     <NavLink class="nav-link" href="/" Match="NavLinkMatch.All">
-                        Ana Sayfa
+                        <i class="bi bi-house me-1"></i> @GetText("Nav.Home")
                     </NavLink>
                 </li>
-                <!-- Ürünler -->
                 <li class="nav-item">
                     <NavLink class="nav-link" href="/urunler">
-                        Ürünler
+                        <i class="bi bi-grid me-1"></i> @GetText("Nav.Products")
                     </NavLink>
                 </li>
-                <!-- Kategoriler Dropdown -->
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" role="button" 
-                       @onclick="ToggleDesktopCategories"
-                       @onclick:preventDefault="true"
-                       aria-expanded="@isDesktopCategoriesOpen">
-                        Kategoriler
-                    </a>
-                    <ul class="dropdown-menu @(isDesktopCategoriesOpen ? "show" : "")" aria-labelledby="categoriesDropdown">
-                        <li><NavLink class="dropdown-item" href="/kategoriler/elektronik" @onclick="CloseDesktopCategories">Elektronik</NavLink></li>
-                        <li><NavLink class="dropdown-item" href="/kategoriler/giyim" @onclick="CloseDesktopCategories">Giyim & Moda</NavLink></li>
-                        <li><NavLink class="dropdown-item" href="/kategoriler/ev-yasam" @onclick="CloseDesktopCategories">Ev & Yaşam</NavLink></li>
-                        <li><NavLink class="dropdown-item" href="/kategoriler/kitap-hobi" @onclick="CloseDesktopCategories">Kitap & Hobi</NavLink></li>
-                        <li><NavLink class="dropdown-item" href="/kategoriler/tasit" @onclick="CloseDesktopCategories">Taşıt</NavLink></li>
-                        <li><NavLink class="dropdown-item" href="/kategoriler/spor" @onclick="CloseDesktopCategories">Spor & Outdoor</NavLink></li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li><NavLink class="dropdown-item" href="/kategoriler" @onclick="CloseDesktopCategories">Tüm Kategoriler</NavLink></li>
-                    </ul>
+                <li class="nav-item">
+                    <NavLink class="nav-link" href="/kategoriler">
+                        <i class="bi bi-tags me-1"></i> @GetText("Nav.Categories")
+                    </NavLink>
                 </li>
                 <li class="nav-item">
-                    <NavLink class="nav-link" href="/nasil-calisir">Nasıl Çalışır?</NavLink>
-                </li>
-                <li class="nav-item">
-                    <NavLink class="nav-link" href="/hakkimizda">Hakkımızda</NavLink>
+                    <NavLink class="nav-link" href="/hakkimizda">
+                        <i class="bi bi-info-circle me-1"></i> @GetText("Nav.About")
+                    </NavLink>
                 </li>
             </ul>
 
-            <!-- Right Side Actions -->
-            <div class="d-flex align-items-center gap-3">
-                <!-- Search -->
-                <div class="input-group search-wrapper d-none d-md-flex">
-                    <input type="search" class="form-control search-input" placeholder="Ürün ara..." 
-                           aria-label="Ürün ara" />
-                    <button class="btn btn-outline-secondary" type="button" aria-label="Ara">
-                        <i class="bi bi-search"></i>
+            <div class="d-flex align-items-center gap-2">
+                @if (Auth?.IsAuthenticated == true)
+                {
+                    <!-- Cart Button for Buyers -->
+                    @if (Auth.IsBuyer)
+                    {
+                        <NavLink class="btn btn-outline-secondary btn-sm" href="/sepet">
+                            <i class="bi bi-cart me-1"></i> @GetText("Nav.Cart")
+                        </NavLink>
+                    }
+
+                    <!-- User Dropdown -->
+                    <div class="dropdown position-relative">
+                        <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" @onclick="ToggleUserDropdown" @onclick:stopPropagation="true">
+                            <i class="bi bi-person-circle me-1"></i> @Auth.CurrentUser?.FullName
+                        </button>
+                        @if (isUserDropdownOpen)
+                        {
+                            <div class="dropdown-backdrop" @onclick="CloseAllDropdowns"></div>
+                            <ul class="dropdown-menu dropdown-menu-end show">
+                                @if (Auth.IsAdmin)
+                                {
+                                    <li class="dropdown-header">Admin</li>
+                                    <li><a class="dropdown-item" href="/admin/dashboard" @onclick="CloseAllDropdowns"><i class="bi bi-speedometer2 me-2"></i>@GetText("Nav.AdminPanel")</a></li>
+                                    <li><a class="dropdown-item" href="/admin/kullanicilar" @onclick="CloseAllDropdowns"><i class="bi bi-people me-2"></i>@GetText("Nav.UserManagement")</a></li>
+                                    <li><a class="dropdown-item" href="/admin/kategoriler" @onclick="CloseAllDropdowns"><i class="bi bi-tags me-2"></i>@GetText("Nav.CategoryManagement")</a></li>
+                                    <li><a class="dropdown-item" href="/admin/siparisler" @onclick="CloseAllDropdowns"><i class="bi bi-box-seam me-2"></i>@GetText("Nav.OrderManagement")</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                }
+                                @if (Auth.IsSeller)
+                                {
+                                    <li class="dropdown-header">Satıcı Paneli</li>
+                                    <li><a class="dropdown-item" href="/satici/dashboard" @onclick="CloseAllDropdowns"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a></li>
+                                    <li><a class="dropdown-item" href="/satici/urunlerim" @onclick="CloseAllDropdowns"><i class="bi bi-box me-2"></i>Ürünlerim</a></li>
+                                    <li><a class="dropdown-item" href="/satici/urun-ekle" @onclick="CloseAllDropdowns"><i class="bi bi-plus-circle me-2"></i>Ürün Ekle</a></li>
+                                <li><a class="dropdown-item" href="/satici/siparisler" @onclick="CloseAllDropdowns"><i class="bi bi-receipt me-2"></i>Siparişlerim</a></li>
+                                        <li><a class="dropdown-item" href="/satici/degerlendirmeler" @onclick="CloseAllDropdowns"><i class="bi bi-star me-2"></i>Değerlendirmeler</a></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                }
+                                @if (Auth.IsBuyer)
+                                {
+                                    <li class="dropdown-header">Hesabım</li>
+                                    <li><a class="dropdown-item" href="/hesabim/dashboard" @onclick="CloseAllDropdowns"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a></li>
+                                    <li><a class="dropdown-item" href="/hesabim/siparislerim" @onclick="CloseAllDropdowns"><i class="bi bi-bag me-2"></i>Siparişlerim</a></li>
+                                    <li><a class="dropdown-item" href="/hesabim/degerlendirmelerim" @onclick="CloseAllDropdowns"><i class="bi bi-star me-2"></i>Değerlendirmelerim</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                }
+                                <li><a class="dropdown-item" href="/profil" @onclick="CloseAllDropdowns"><i class="bi bi-person me-2"></i>@GetText("Nav.Profile")</a></li>
+                                <li><button class="dropdown-item text-danger" @onclick="Logout"><i class="bi bi-box-arrow-right me-2"></i>@GetText("Nav.Logout")</button></li>
+                            </ul>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <NavLink class="btn btn-outline-secondary btn-sm" href="/giris">
+                        <i class="bi bi-box-arrow-in-right me-1"></i> @GetText("Nav.Login")
+                    </NavLink>
+                    <NavLink class="btn btn-primary btn-sm" href="/kayit">
+                        <i class="bi bi-person-plus me-1"></i> @GetText("Nav.Register")
+                    </NavLink>
+                }
+
+                <!-- Language Dropdown -->
+                <div class="dropdown position-relative">
+                    <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" @onclick="ToggleLangDropdown" @onclick:stopPropagation="true" title="@GetText("Nav.Language")">
+                        <i class="bi bi-globe me-1"></i> @(Localization?.CurrentLanguage?.ToUpper() ?? "TR")
                     </button>
+                    @if (isLangDropdownOpen)
+                    {
+                        <div class="dropdown-backdrop" @onclick="CloseAllDropdowns"></div>
+                        <ul class="dropdown-menu dropdown-menu-end show">
+                            <li><button class="dropdown-item @(Localization?.CurrentLanguage == "tr" ? "active" : "")" @onclick='() => ChangeLanguage("tr")'>🇹🇷 Türkçe</button></li>
+                            <li><button class="dropdown-item @(Localization?.CurrentLanguage == "en" ? "active" : "")" @onclick='() => ChangeLanguage("en")'>🇬🇧 English</button></li>
+                        </ul>
+                    }
                 </div>
 
                 <!-- Theme Toggle -->
-                <button class="btn theme-toggle-btn" @onclick="ToggleTheme" aria-label="Tema değiştir">
-                    <i class="bi @(isDarkMode ? "bi-sun-fill" : "bi-moon-fill")"></i>
+                <button class="theme-toggle-btn" @onclick="ToggleTheme" title="@GetText("Nav.ToggleTheme")">
+                    <i class="bi @(Theme?.IsDarkMode == true ? "bi-sun" : "bi-moon")"></i>
                 </button>
-
-                <!-- CTA Buttons -->
-                <NavLink class="btn btn-primary d-none d-lg-inline-flex" href="/urun-ekle">
-                    Ürün Sat
-                </NavLink>
-                <NavLink class="btn btn-link d-none d-lg-inline-flex" href="/giris">
-                    Giriş Yap
-                </NavLink>
-                <NavLink class="btn btn-outline-secondary d-none d-lg-inline-flex" href="/kayit">
-                    Kayıt Ol
-                </NavLink>
             </div>
         </div>
     </div>
 </nav>
 
-<!-- Offcanvas Backdrop -->
-@if (OffcanvasService.IsOpen)
-{
-    <div class="offcanvas-backdrop fade show" @onclick="CloseOffcanvas" style="position: fixed; top: 0; left: 0; z-index: 1040; width: 100vw; height: 100vh; background-color: rgba(0, 0, 0, 0.5);"></div>
-}
-
-<!-- Offcanvas Menu (Mobile) -->
-<div class="offcanvas offcanvas-end @(OffcanvasService.IsOpen ? "show" : "")" 
-     tabindex="-1" 
-     id="offcanvasNavbar" 
-     aria-labelledby="offcanvasNavbarLabel"
-     style="@(OffcanvasService.IsOpen ? "visibility: visible;" : "")">
-    <div class="offcanvas-header">
-        <h5 class="offcanvas-title" id="offcanvasNavbarLabel">Menü</h5>
-        <button type="button" class="btn-close" @onclick="CloseOffcanvas" aria-label="Kapat"></button>
-    </div>
-    <div class="offcanvas-body">
-        <!-- Search (Mobile) -->
-        <div class="input-group mb-4">
-            <input type="search" class="form-control search-input" placeholder="Ürün ara..." 
-                   aria-label="Ürün ara" />
-            <button class="btn btn-outline-secondary" type="button" aria-label="Ara">
-                <i class="bi bi-search"></i>
-            </button>
-        </div>
-
-        <!-- Nav Links (Mobile) -->
-        <ul class="navbar-nav flex-column">
-            <li class="nav-item">
-                <NavLink class="nav-link" href="/" Match="NavLinkMatch.All" @onclick="CloseOffcanvas">
-                    <i class="bi bi-house-door me-2"></i> Ana Sayfa
-                </NavLink>
-            </li>
-            <li class="nav-item">
-                <NavLink class="nav-link" href="/urunler" @onclick="CloseOffcanvas">
-                    <i class="bi bi-box-seam me-2"></i> Ürünler
-                </NavLink>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" @onclick="ToggleMobileCategories" 
-                   role="button" 
-                   aria-expanded="@isMobileCategoriesOpen.ToString().ToLower()" 
-                   aria-controls="mobileCategories">
-                    <i class="bi bi-grid me-2"></i> Kategoriler
-                </a>
-                <div class="collapse @(isMobileCategoriesOpen ? "show" : "")" id="mobileCategories">
-                    <ul class="list-unstyled ms-4 mt-2">
-                        <li><NavLink class="nav-link py-2" href="/kategoriler/elektronik" @onclick="CloseOffcanvas">Elektronik</NavLink></li>
-                        <li><NavLink class="nav-link py-2" href="/kategoriler/giyim" @onclick="CloseOffcanvas">Giyim & Moda</NavLink></li>
-                        <li><NavLink class="nav-link py-2" href="/kategoriler/ev-yasam" @onclick="CloseOffcanvas">Ev & Yaşam</NavLink></li>
-                        <li><NavLink class="nav-link py-2" href="/kategoriler/kitap-hobi" @onclick="CloseOffcanvas">Kitap & Hobi</NavLink></li>
-                        <li><NavLink class="nav-link py-2" href="/kategoriler/tasit" @onclick="CloseOffcanvas">Taşıt</NavLink></li>
-                        <li><NavLink class="nav-link py-2" href="/kategoriler/spor" @onclick="CloseOffcanvas">Spor & Outdoor</NavLink></li>
-                        <li><NavLink class="nav-link py-2" href="/kategoriler" @onclick="CloseOffcanvas">Tüm Kategoriler</NavLink></li>
-                    </ul>
-                </div>
-            </li>
-            <li class="nav-item">
-                <NavLink class="nav-link" href="/nasil-calisir" @onclick="CloseOffcanvas">
-                    <i class="bi bi-question-circle me-2"></i> Nasıl Çalışır?
-                </NavLink>
-            </li>
-            <li class="nav-item">
-                <NavLink class="nav-link" href="/hakkimizda" @onclick="CloseOffcanvas">
-                    <i class="bi bi-info-circle me-2"></i> Hakkımızda
-                </NavLink>
-            </li>
-        </ul>
-
-        <!-- Mobile Actions -->
-        <div class="d-grid gap-2 mt-4 pt-4 border-top">
-            <NavLink class="btn btn-primary" href="/urun-ekle" @onclick="CloseOffcanvas">
-                <i class="bi bi-plus-circle me-2"></i> Ürün Sat
-            </NavLink>
-            <NavLink class="btn btn-link" href="/giris" @onclick="CloseOffcanvas">
-                Giriş Yap
-            </NavLink>
-            <NavLink class="btn btn-outline-secondary" href="/kayit" @onclick="CloseOffcanvas">
-                Kayıt Ol
-            </NavLink>
-            <button class="btn btn-outline-secondary" @onclick="ToggleThemeAndClose">
-                <i class="bi @(isDarkMode ? "bi-sun-fill" : "bi-moon-fill") me-2"></i>
-                Tema: @(isDarkMode ? "Açık" : "Koyu")
-            </button>
-        </div>
-    </div>
-</div>
-
-@inject ThemeService ThemeService
-@inject OffcanvasService OffcanvasService
-@implements IDisposable
+<style>
+    .dropdown-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 1000;
+        background: transparent;
+    }
+    
+    .dropdown-menu.show {
+        display: block;
+        position: absolute;
+        z-index: 1001;
+    }
+    
+    .dropdown-header {
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        color: #6c757d;
+    }
+</style>
 
 @code {
-    private bool isDarkMode = false;
-    private bool isMobileCategoriesOpen = false;
-    private bool isDesktopCategoriesOpen = false;
+    [CascadingParameter(Name = "AuthService")]
+    public AuthService? Auth { get; set; }
+    
+    [CascadingParameter(Name = "ThemeService")]
+    public ThemeService? Theme { get; set; }
+    
+    [CascadingParameter(Name = "Localization")]
+    public LocalizationService? Localization { get; set; }
+
+    private bool isUserDropdownOpen = false;
+    private bool isLangDropdownOpen = false;
+    private bool isMobileMenuOpen = false;
 
     protected override void OnInitialized()
     {
-        isDarkMode = ThemeService.IsDarkMode;
-        ThemeService.OnThemeChanged += HandleThemeChanged;
-        OffcanvasService.OnOffcanvasChanged += HandleOffcanvasChanged;
+        if (Auth != null)
+            Auth.OnAuthStateChanged += HandleStateChanged;
+        if (Theme != null)
+            Theme.OnThemeChanged += HandleStateChanged;
+        if (Localization != null)
+            Localization.OnLanguageChanged += HandleStateChanged;
     }
 
-    private void ToggleOffcanvas()
+    private string GetText(string key)
     {
-        OffcanvasService.Toggle();
+        return Localization?[key] ?? key;
     }
 
-    private void CloseOffcanvas()
+    private void HandleStateChanged()
     {
-        OffcanvasService.Close();
+        InvokeAsync(StateHasChanged);
     }
 
-    private void HandleOffcanvasChanged()
+    private void ToggleUserDropdown()
     {
-        StateHasChanged();
+        isLangDropdownOpen = false;
+        isUserDropdownOpen = !isUserDropdownOpen;
     }
 
-    private void ToggleMobileCategories()
+    private void ToggleLangDropdown()
     {
-        isMobileCategoriesOpen = !isMobileCategoriesOpen;
-        StateHasChanged();
+        isUserDropdownOpen = false;
+        isLangDropdownOpen = !isLangDropdownOpen;
     }
 
-    private void ToggleDesktopCategories()
+    private void ToggleMobileMenu()
     {
-        isDesktopCategoriesOpen = !isDesktopCategoriesOpen;
-        StateHasChanged();
+        isMobileMenuOpen = !isMobileMenuOpen;
     }
 
-    private void CloseDesktopCategories()
+    private void CloseAllDropdowns()
     {
-        isDesktopCategoriesOpen = false;
-        StateHasChanged();
-    }
-
-    private void HandleThemeChanged()
-    {
-        isDarkMode = ThemeService.IsDarkMode;
-        StateHasChanged();
+        isUserDropdownOpen = false;
+        isLangDropdownOpen = false;
     }
 
     private async Task ToggleTheme()
     {
-        await ThemeService.ToggleTheme();
+        if (Theme != null)
+            await Theme.ToggleThemeAsync();
     }
 
-    private async Task ToggleThemeAndClose()
+    private async Task ChangeLanguage(string language)
     {
-        await ToggleTheme();
-        CloseOffcanvas();
+        CloseAllDropdowns();
+        if (Localization != null)
+            await Localization.SetLanguageAsync(language);
+    }
+
+    private async Task Logout()
+    {
+        CloseAllDropdowns();
+        if (Auth != null)
+            await Auth.LogoutAsync();
+        Navigation.NavigateTo("/");
     }
 
     public void Dispose()
     {
-        ThemeService.OnThemeChanged -= HandleThemeChanged;
-        OffcanvasService.OnOffcanvasChanged -= HandleOffcanvasChanged;
+        if (Auth != null)
+            Auth.OnAuthStateChanged -= HandleStateChanged;
+        if (Theme != null)
+            Theme.OnThemeChanged -= HandleStateChanged;
+        if (Localization != null)
+            Localization.OnLanguageChanged -= HandleStateChanged;
     }
 }

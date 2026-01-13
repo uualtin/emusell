@@ -1,0 +1,326 @@
+@page "/admin/siparisler"
+@inject AuthService AuthService
+@inject OrderService OrderService
+@rendermode InteractiveServer
+
+<PageTitle>Sipariş Yönetimi - Emusell Admin</PageTitle>
+
+@if (!AuthService.IsAdmin)
+{
+    <div class="container py-5 text-center">
+        <i class="bi bi-shield-exclamation display-1 text-danger"></i>
+        <h2 class="mt-3">Yetkisiz Erişim</h2>
+        <p class="text-muted">Bu sayfayı görüntüleme yetkiniz yok.</p>
+        <a href="/" class="btn btn-primary">Ana Sayfaya Dön</a>
+    </div>
+}
+else
+{
+    <div class="container py-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="mb-0"><i class="bi bi-box-seam me-2"></i>Sipariş Yönetimi</h1>
+                <p class="text-muted mb-0">Tüm siparişleri yönetin</p>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(message))
+        {
+            <div class="alert @(isError ? "alert-danger" : "alert-success") alert-dismissible fade show">
+                @message
+                <button type="button" class="btn-close" @onclick="() => message = null"></button>
+            </div>
+        }
+
+        <!-- Filtreler -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row g-3 align-items-center">
+                    <div class="col-md-4">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                            <input type="text" class="form-control" placeholder="Sipariş no veya müşteri ara..." @bind="searchTerm" @bind:event="oninput" />
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" @bind="filterStatus">
+                            <option value="">Tüm Durumlar</option>
+                            <option value="Pending">Beklemede</option>
+                            <option value="Confirmed">Onaylandı</option>
+                            <option value="Shipped">Kargoda</option>
+                            <option value="Delivered">Teslim Edildi</option>
+                            <option value="Cancelled">İptal</option>
+                            <option value="Refunded">İade</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sipariş Listesi -->
+        <div class="card">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Sipariş No</th>
+                            <th>Müşteri</th>
+                            <th>Ürünler</th>
+                            <th>Tutar</th>
+                            <th>Durum</th>
+                            <th>Ödeme</th>
+                            <th>Tarih</th>
+                            <th class="text-end">İşlemler</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (filteredOrders?.Any() == true)
+                        {
+                            @foreach (var order in filteredOrders)
+                            {
+                                <tr>
+                                    <td><strong>@order.OrderNumber</strong></td>
+                                    <td>
+                                        <div>
+                                            <strong>@order.BuyerName</strong>
+                                            <br />
+                                            <small class="text-muted">@order.BuyerEmail</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">@order.Items.Count ürün</span>
+                                    </td>
+                                    <td>@order.TotalAmount.ToString("C0", new System.Globalization.CultureInfo("tr-TR"))</td>
+                                    <td>
+                                        <span class="badge @GetStatusBadgeClass(order.Status)">
+                                            @GetStatusDisplayName(order.Status)
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge @GetPaymentStatusBadgeClass(order.PaymentStatus)">
+                                            @GetPaymentStatusDisplayName(order.PaymentStatus)
+                                        </span>
+                                    </td>
+                                    <td>@order.CreatedAt.ToString("dd.MM.yyyy HH:mm")</td>
+                                    <td class="text-end">
+                                        <div class="dropdown">
+                                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                                İşlemler
+                                            </button>
+                                            <ul class="dropdown-menu dropdown-menu-end">
+                                                <li><button class="dropdown-item" @onclick="() => ShowOrderDetails(order)"><i class="bi bi-eye me-2"></i>Detaylar</button></li>
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li><button class="dropdown-item" @onclick="() => UpdateStatus(order.Id, OrderStatus.Confirmed)"><i class="bi bi-check-circle me-2"></i>Onayla</button></li>
+                                                <li><button class="dropdown-item" @onclick="() => UpdateStatus(order.Id, OrderStatus.Shipped)"><i class="bi bi-truck me-2"></i>Kargoya Ver</button></li>
+                                                <li><button class="dropdown-item" @onclick="() => UpdateStatus(order.Id, OrderStatus.Delivered)"><i class="bi bi-box-seam me-2"></i>Teslim Edildi</button></li>
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li><button class="dropdown-item text-warning" @onclick="() => CancelOrder(order.Id)"><i class="bi bi-x-circle me-2"></i>İptal Et</button></li>
+                                                <li><button class="dropdown-item text-danger" @onclick="() => RefundOrder(order.Id)"><i class="bi bi-arrow-counterclockwise me-2"></i>İade Et</button></li>
+                                            </ul>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="8" class="text-center py-4">
+                                    <i class="bi bi-inbox display-4 text-muted"></i>
+                                    <p class="text-muted mt-2">Sipariş bulunamadı</p>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sipariş Detay Modal -->
+    @if (showDetailModal && selectedOrder != null)
+    {
+        <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5);">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Sipariş Detayı - @selectedOrder.OrderNumber</h5>
+                        <button type="button" class="btn-close" @onclick="CloseDetailModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <h6>Müşteri Bilgileri</h6>
+                                <p class="mb-1"><strong>@selectedOrder.BuyerName</strong></p>
+                                <p class="mb-1">@selectedOrder.BuyerEmail</p>
+                                <p class="mb-1">@selectedOrder.BuyerPhone</p>
+                                <p class="mb-0 text-muted">@selectedOrder.ShippingAddress</p>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Sipariş Bilgileri</h6>
+                                <p class="mb-1">
+                                    <span class="badge @GetStatusBadgeClass(selectedOrder.Status)">@GetStatusDisplayName(selectedOrder.Status)</span>
+                                    <span class="badge @GetPaymentStatusBadgeClass(selectedOrder.PaymentStatus) ms-1">@GetPaymentStatusDisplayName(selectedOrder.PaymentStatus)</span>
+                                </p>
+                                <p class="mb-1">Tarih: @selectedOrder.CreatedAt.ToString("dd.MM.yyyy HH:mm")</p>
+                                <p class="mb-0">Toplam: <strong>@selectedOrder.TotalAmount.ToString("C0", new System.Globalization.CultureInfo("tr-TR"))</strong></p>
+                            </div>
+                        </div>
+
+                        <h6>Ürünler</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Ürün</th>
+                                        <th>Satıcı</th>
+                                        <th>Fiyat</th>
+                                        <th>Adet</th>
+                                        <th>Toplam</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var item in selectedOrder.Items)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    @if (!string.IsNullOrEmpty(item.ProductImageUrl))
+                                                    {
+                                                        <img src="@item.ProductImageUrl" class="me-2 rounded" style="width: 40px; height: 40px; object-fit: cover;" />
+                                                    }
+                                                    @item.ProductTitle
+                                                </div>
+                                            </td>
+                                            <td>@item.SellerName</td>
+                                            <td>@item.Price.ToString("C0", new System.Globalization.CultureInfo("tr-TR"))</td>
+                                            <td>@item.Quantity</td>
+                                            <td>@((item.Price * item.Quantity).ToString("C0", new System.Globalization.CultureInfo("tr-TR")))</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(selectedOrder.Notes))
+                        {
+                            <div class="mt-3">
+                                <h6>Notlar</h6>
+                                <p class="text-muted">@selectedOrder.Notes</p>
+                            </div>
+                        }
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseDetailModal">Kapat</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    private List<Order>? orders;
+    private string? searchTerm;
+    private string? filterStatus;
+    private string? message;
+    private bool isError;
+    private bool showDetailModal;
+    private Order? selectedOrder;
+
+    private IEnumerable<Order>? filteredOrders => orders?.Where(o =>
+        (string.IsNullOrEmpty(searchTerm) ||
+         o.OrderNumber.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+         o.BuyerName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)) &&
+        (string.IsNullOrEmpty(filterStatus) || o.Status.ToString() == filterStatus)
+    );
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthService.IsAdmin)
+        {
+            await LoadOrders();
+        }
+    }
+
+    private async Task LoadOrders()
+    {
+        orders = await OrderService.GetAllOrdersAsync();
+    }
+
+    private void ShowOrderDetails(Order order)
+    {
+        selectedOrder = order;
+        showDetailModal = true;
+    }
+
+    private void CloseDetailModal()
+    {
+        showDetailModal = false;
+        selectedOrder = null;
+    }
+
+    private async Task UpdateStatus(string id, OrderStatus status)
+    {
+        await OrderService.UpdateOrderStatusAsync(id, status);
+        message = $"Sipariş durumu güncellendi: {GetStatusDisplayName(status)}";
+        isError = false;
+        await LoadOrders();
+    }
+
+    private async Task CancelOrder(string id)
+    {
+        await OrderService.CancelOrderAsync(id);
+        message = "Sipariş iptal edildi.";
+        isError = false;
+        await LoadOrders();
+    }
+
+    private async Task RefundOrder(string id)
+    {
+        await OrderService.RefundOrderAsync(id);
+        message = "Sipariş iade edildi.";
+        isError = false;
+        await LoadOrders();
+    }
+
+    private string GetStatusBadgeClass(OrderStatus status) => status switch
+    {
+        OrderStatus.Pending => "bg-warning",
+        OrderStatus.Confirmed => "bg-info",
+        OrderStatus.Shipped => "bg-primary",
+        OrderStatus.Delivered => "bg-success",
+        OrderStatus.Cancelled => "bg-danger",
+        OrderStatus.Refunded => "bg-secondary",
+        _ => "bg-secondary"
+    };
+
+    private string GetStatusDisplayName(OrderStatus status) => status switch
+    {
+        OrderStatus.Pending => "Beklemede",
+        OrderStatus.Confirmed => "Onaylandı",
+        OrderStatus.Shipped => "Kargoda",
+        OrderStatus.Delivered => "Teslim Edildi",
+        OrderStatus.Cancelled => "İptal",
+        OrderStatus.Refunded => "İade",
+        _ => "Bilinmiyor"
+    };
+
+    private string GetPaymentStatusBadgeClass(PaymentStatus status) => status switch
+    {
+        PaymentStatus.Pending => "bg-warning",
+        PaymentStatus.Completed => "bg-success",
+        PaymentStatus.Failed => "bg-danger",
+        PaymentStatus.Refunded => "bg-secondary",
+        _ => "bg-secondary"
+    };
+
+    private string GetPaymentStatusDisplayName(PaymentStatus status) => status switch
+    {
+        PaymentStatus.Pending => "Beklemede",
+        PaymentStatus.Completed => "Ödendi",
+        PaymentStatus.Failed => "Başarısız",
+        PaymentStatus.Refunded => "İade Edildi",
+        _ => "Bilinmiyor"
+    };
+}

@@ -1,58 +1,63 @@
 @page "/kategoriler"
-@using Emusell.Models
-@using Emusell.Services
 @inject CategoryService CategoryService
-@inject NavigationManager Navigation
+@rendermode InteractiveServer
 
 <PageTitle>Kategoriler - Emusell</PageTitle>
 
-<div class="container py-5">
-    <div class="text-center mb-5">
-        <h1 class="display-5 mb-3">
-            <i class="bi bi-grid-3x3-gap me-3"></i>Tüm Kategoriler
-        </h1>
-        <p class="lead text-muted">İlgilendiğiniz kategoriye göz atın ve ürünleri keşfedin</p>
-    </div>
+<div class="container py-4">
+    <h1 class="mb-4"><i class="bi bi-tags me-2"></i>Kategoriler</h1>
 
-    @if (isLoading)
+    @if (mainCategories == null)
     {
         <div class="text-center py-5">
-            <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+            <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Yükleniyor...</span>
             </div>
-            <p class="mt-3 text-muted">Kategoriler yükleniyor...</p>
-        </div>
-    }
-    else if (categories == null || !categories.Any())
-    {
-        <div class="text-center py-5">
-            <i class="bi bi-inbox text-muted" style="font-size: 4rem;"></i>
-            <h3 class="h4 mb-3 mt-3">Henüz Kategori Yok</h3>
-            <p class="text-muted">Kategoriler eklendiğinde burada görünecek.</p>
         </div>
     }
     else
     {
         <div class="row g-4">
-            @foreach (var category in categories)
+            @foreach (var mainCategory in mainCategories)
             {
-                <div class="col-12 col-sm-6 col-lg-4">
-                    <div class="card h-100 shadow-sm category-card" @onclick="() => NavigateToCategory(category.Slug)">
-                        <div class="card-body text-center p-4">
-                            <div class="category-icon-wrapper mb-3">
-                                <i class="bi @category.Icon" style="font-size: 3rem; color: var(--bs-primary);"></i>
-                            </div>
-                            <h3 class="h4 mb-2">@category.Name</h3>
-                            <p class="text-muted mb-3">@category.Description</p>
-                            <div class="badge bg-primary rounded-pill">
-                                @category.ProductCount Ürün
-                            </div>
+                var subCats = GetSubcategoriesForMain(mainCategory.Id);
+                <div class="col-12">
+                    <div class="card category-card">
+                        <div class="card-header d-flex align-items-center justify-content-between">
+                            <a href="/kategoriler/@mainCategory.Slug" class="text-decoration-none">
+                                <div class="d-flex align-items-center">
+                                    <div class="category-icon bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center me-3" style="width: 50px; height: 50px;">
+                                        <i class="@mainCategory.Icon fs-4"></i>
+                                    </div>
+                                    <div>
+                                        <h5 class="mb-0 text-dark">@mainCategory.Name</h5>
+                                        <small class="text-muted">@mainCategory.Description</small>
+                                    </div>
+                                </div>
+                            </a>
+                            <a href="/kategoriler/@mainCategory.Slug" class="btn btn-outline-primary btn-sm">
+                                Tümünü Gör <i class="bi bi-arrow-right ms-1"></i>
+                            </a>
                         </div>
-                        <div class="card-footer bg-transparent border-0 text-center pb-3">
-                            <span class="text-primary fw-semibold">
-                                Görüntüle <i class="bi bi-arrow-right ms-1"></i>
-                            </span>
-                        </div>
+                        
+                        @if (subCats?.Any() == true)
+                        {
+                            <div class="card-body">
+                                <div class="row g-2">
+                                    @foreach (var subCategory in subCats)
+                                    {
+                                        <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                                            <a href="/kategoriler/@subCategory.Slug" class="text-decoration-none">
+                                                <div class="subcategory-item p-2 rounded text-center">
+                                                    <i class="@subCategory.Icon d-block mb-1 text-primary"></i>
+                                                    <small class="text-dark">@subCategory.Name</small>
+                                                </div>
+                                            </a>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
                     </div>
                 </div>
             }
@@ -62,48 +67,33 @@
 
 <style>
     .category-card {
-        cursor: pointer;
-        transition: all 0.3s ease;
-        border: 1px solid rgba(0,0,0,.125);
+        transition: box-shadow 0.2s;
     }
-
     .category-card:hover {
-        transform: translateY(-8px);
-        box-shadow: 0 0.5rem 1.5rem rgba(0,0,0,.15) !important;
-        border-color: var(--bs-primary);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
     }
-
-    .category-card:hover .category-icon-wrapper i {
-        transform: scale(1.1);
-        transition: transform 0.3s ease;
+    .subcategory-item {
+        transition: background-color 0.2s;
+        border: 1px solid transparent;
     }
-
-    .category-icon-wrapper {
-        height: 80px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+    .subcategory-item:hover {
+        background-color: rgba(99, 102, 241, 0.1);
+        border-color: rgba(99, 102, 241, 0.2);
     }
 </style>
 
 @code {
-    private List<Category>? categories;
-    private bool isLoading = true;
+    private List<Category>? mainCategories;
+    private List<Category>? allSubCategories;
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadCategories();
+        mainCategories = await CategoryService.GetMainCategoriesAsync();
+        allSubCategories = await CategoryService.GetAllSubcategoriesAsync();
     }
 
-    private async Task LoadCategories()
+    private List<Category>? GetSubcategoriesForMain(string mainCategoryId)
     {
-        isLoading = true;
-        categories = await CategoryService.GetAllCategoriesAsync();
-        isLoading = false;
-    }
-
-    private void NavigateToCategory(string slug)
-    {
-        Navigation.NavigateTo($"/kategoriler/{slug}");
+        return allSubCategories?.Where(c => c.ParentCategoryId == mainCategoryId).OrderBy(c => c.Name).ToList();
     }
 }

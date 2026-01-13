@@ -1,0 +1,286 @@
+@page "/satici/urunlerim"
+@inject AuthService AuthService
+@inject ProductService ProductService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<PageTitle>Ürünlerim - Emusell Satıcı</PageTitle>
+
+@if (!AuthService.IsSeller && !AuthService.IsAdmin)
+{
+    <div class="container py-5 text-center">
+        <i class="bi bi-shield-exclamation display-1 text-danger"></i>
+        <h2 class="mt-3">Yetkisiz Erişim</h2>
+        <p class="text-muted">Bu sayfayı görüntüleme yetkiniz yok.</p>
+        <a href="/" class="btn btn-primary">Ana Sayfaya Dön</a>
+    </div>
+}
+else
+{
+    <div class="container py-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="mb-0"><i class="bi bi-box-seam me-2"></i>Ürünlerim</h1>
+                <p class="text-muted mb-0">Ürünlerinizi yönetin</p>
+            </div>
+            <a href="/satici/urun-ekle" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-2"></i>Yeni Ürün Ekle
+            </a>
+        </div>
+
+        @if (!string.IsNullOrEmpty(message))
+        {
+            <div class="alert @(isError ? "alert-danger" : "alert-success") alert-dismissible fade show">
+                @message
+                <button type="button" class="btn-close" @onclick="() => message = null"></button>
+            </div>
+        }
+
+        <!-- Filtreler -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row g-3 align-items-center">
+                    <div class="col-md-4">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                            <input type="text" class="form-control" placeholder="Ürün ara..." @bind="searchTerm" @bind:event="oninput" />
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" @bind="filterStatus">
+                            <option value="">Tüm Durumlar</option>
+                            <option value="active">Aktif</option>
+                            <option value="sold">Satıldı</option>
+                            <option value="inactive">Pasif</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ürün Listesi -->
+        @if (filteredProducts?.Any() == true)
+        {
+            <div class="row g-4">
+                @foreach (var product in filteredProducts)
+                {
+                    <div class="col-md-6 col-lg-4">
+                        <div class="card h-100 @(product.IsSold ? "opacity-75" : "")">
+                            <div class="position-relative">
+                                <img src="@product.ImageUrl" class="card-img-top" style="height: 200px; object-fit: cover;" onerror="this.src='https://via.placeholder.com/400x200'" />
+                                @if (product.IsSold)
+                                {
+                                    <div class="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center" style="background: rgba(0,0,0,0.5);">
+                                        <span class="badge bg-dark fs-5">SATILDI</span>
+                                    </div>
+                                }
+                                else if (!product.IsActive)
+                                {
+                                    <span class="position-absolute top-0 end-0 m-2 badge bg-secondary">Pasif</span>
+                                }
+                                else
+                                {
+                                    <span class="position-absolute top-0 end-0 m-2 badge bg-success">Aktif</span>
+                                }
+                            </div>
+                            <div class="card-body">
+                                <h5 class="card-title">@product.Title</h5>
+                                <p class="card-text text-muted small">@product.Description.Take(80)...</p>
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <span class="fs-5 fw-bold text-primary">
+                                        @product.Price.ToString("C0", new System.Globalization.CultureInfo("tr-TR"))
+                                    </span>
+                                    <span class="badge bg-light text-dark">
+                                        <i class="bi bi-eye me-1"></i>@product.ViewCount görüntülenme
+                                    </span>
+                                </div>
+                                <p class="small text-muted mb-2">
+                                    <i class="bi bi-tag me-1"></i>@product.CategoryName
+                                    <br />
+                                    <i class="bi bi-calendar me-1"></i>@product.CreatedAt.ToString("dd.MM.yyyy")
+                                </p>
+                            </div>
+                            <div class="card-footer bg-transparent">
+                                <div class="btn-group w-100">
+                                    <a href="/satici/urun-duzenle/@product.Id" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-pencil me-1"></i>Düzenle
+                                    </a>
+                                    @if (!product.IsSold)
+                                    {
+                                        <button class="btn btn-sm btn-outline-success" @onclick="() => MarkAsSold(product.Id)">
+                                            <i class="bi bi-check-circle me-1"></i>Satıldı
+                                        </button>
+                                        @if (product.IsActive)
+                                        {
+                                            <button class="btn btn-sm btn-outline-warning" @onclick="() => ToggleActive(product.Id, false)">
+                                                <i class="bi bi-eye-slash me-1"></i>Pasif
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <button class="btn btn-sm btn-outline-info" @onclick="() => ToggleActive(product.Id, true)">
+                                                <i class="bi bi-eye me-1"></i>Aktif
+                                            </button>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => MarkAsAvailable(product.Id)">
+                                            <i class="bi bi-arrow-counterclockwise me-1"></i>Satışa Aç
+                                        </button>
+                                    }
+                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => ShowDeleteConfirm(product)">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="text-center py-5">
+                <i class="bi bi-inbox display-1 text-muted"></i>
+                <h3 class="mt-3 text-muted">Henüz ürün eklemediniz</h3>
+                <p class="text-muted">İlk ürününüzü ekleyerek satışa başlayın!</p>
+                <a href="/satici/urun-ekle" class="btn btn-primary btn-lg">
+                    <i class="bi bi-plus-circle me-2"></i>İlk Ürünü Ekle
+                </a>
+            </div>
+        }
+    </div>
+
+    <!-- Silme Onay Modalı -->
+    @if (showDeleteModal && productToDelete != null)
+    {
+        <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5);">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header border-0">
+                        <h5 class="modal-title text-danger">
+                            <i class="bi bi-exclamation-triangle me-2"></i>Ürünü Sil
+                        </h5>
+                        <button type="button" class="btn-close" @onclick="CloseDeleteModal"></button>
+                    </div>
+                    <div class="modal-body text-center py-4">
+                        <div class="mb-3">
+                            <img src="@productToDelete.ImageUrl" class="rounded" style="width: 100px; height: 100px; object-fit: cover;" onerror="this.src='https://via.placeholder.com/100'" />
+                        </div>
+                        <h5>@productToDelete.Title</h5>
+                        <p class="text-muted">Bu ürünü silmek istediğinizden emin misiniz?</p>
+                        <div class="alert alert-warning mb-0">
+                            <i class="bi bi-exclamation-circle me-2"></i>
+                            <strong>Dikkat:</strong> Bu işlem geri alınamaz!
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0 justify-content-center">
+                        <button type="button" class="btn btn-secondary px-4" @onclick="CloseDeleteModal">
+                            <i class="bi bi-x-lg me-2"></i>İptal
+                        </button>
+                        <button type="button" class="btn btn-danger px-4" @onclick="ConfirmDelete" disabled="@isDeleting">
+                            @if (isDeleting)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                            }
+                            <i class="bi bi-trash me-2"></i>Evet, Sil
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    private List<Product>? products;
+    private string? searchTerm;
+    private string? filterStatus;
+    private string? message;
+    private bool isError;
+    private bool showDeleteModal;
+    private bool isDeleting;
+    private Product? productToDelete;
+
+    private IEnumerable<Product>? filteredProducts => products?.Where(p =>
+        (string.IsNullOrEmpty(searchTerm) || p.Title.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)) &&
+        (string.IsNullOrEmpty(filterStatus) ||
+         (filterStatus == "active" && !p.IsSold && p.IsActive) ||
+         (filterStatus == "sold" && p.IsSold) ||
+         (filterStatus == "inactive" && !p.IsSold && !p.IsActive))
+    );
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthService.IsSeller || AuthService.IsAdmin)
+        {
+            await LoadProducts();
+        }
+    }
+
+    private async Task LoadProducts()
+    {
+        var userId = AuthService.CurrentUser?.Id ?? "";
+        products = await ProductService.GetProductsBySellerAsync(userId);
+    }
+
+    private async Task MarkAsSold(string id)
+    {
+        await ProductService.MarkAsSoldAsync(id);
+        message = "Ürün satıldı olarak işaretlendi.";
+        isError = false;
+        await LoadProducts();
+    }
+
+    private async Task MarkAsAvailable(string id)
+    {
+        await ProductService.MarkAsAvailableAsync(id);
+        message = "Ürün tekrar satışa açıldı.";
+        isError = false;
+        await LoadProducts();
+    }
+
+    private async Task ToggleActive(string id, bool isActive)
+    {
+        await ProductService.SetActiveStatusAsync(id, isActive);
+        message = isActive ? "Ürün aktifleştirildi." : "Ürün pasifleştirildi.";
+        isError = false;
+        await LoadProducts();
+    }
+
+    private void ShowDeleteConfirm(Product product)
+    {
+        productToDelete = product;
+        showDeleteModal = true;
+    }
+
+    private void CloseDeleteModal()
+    {
+        showDeleteModal = false;
+        productToDelete = null;
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (productToDelete == null) return;
+
+        isDeleting = true;
+
+        try
+        {
+            await ProductService.DeleteProductAsync(productToDelete.Id!);
+            message = $"'{productToDelete.Title}' ürünü silindi.";
+            isError = false;
+            CloseDeleteModal();
+            await LoadProducts();
+        }
+        catch (Exception ex)
+        {
+            message = $"Hata: {ex.Message}";
+            isError = true;
+        }
+
+        isDeleting = false;
+    }
+}
