@@ -1,0 +1,355 @@
+@page "/admin/kategoriler"
+@inject AuthService AuthService
+@inject CategoryService CategoryService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<PageTitle>Kategori Yönetimi - Emusell Admin</PageTitle>
+
+@if (!AuthService.IsAdmin)
+{
+    <div class="container py-5 text-center">
+        <i class="bi bi-shield-exclamation display-1 text-danger"></i>
+        <h2 class="mt-3">Yetkisiz Erişim</h2>
+        <p class="text-muted">Bu sayfayı görüntüleme yetkiniz yok.</p>
+        <a href="/" class="btn btn-primary">Ana Sayfaya Dön</a>
+    </div>
+}
+else
+{
+    <div class="container py-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="mb-0"><i class="bi bi-tags me-2"></i>Kategori Yönetimi</h1>
+                <p class="text-muted mb-0">Ana kategoriler ve alt kategorileri yönetin</p>
+            </div>
+            <button class="btn btn-primary" @onclick="ShowAddMainCategoryModal">
+                <i class="bi bi-plus-circle me-2"></i>Ana Kategori Ekle
+            </button>
+        </div>
+
+        @if (!string.IsNullOrEmpty(message))
+        {
+            <div class="alert @(isError ? "alert-danger" : "alert-success") alert-dismissible fade show">
+                @message
+                <button type="button" class="btn-close" @onclick="() => message = null"></button>
+            </div>
+        }
+
+        <!-- Ana Kategoriler -->
+        @if (mainCategories?.Any() == true)
+        {
+            <div class="row g-4">
+                @foreach (var mainCategory in mainCategories)
+                {
+                    var subCats = GetSubcategoriesForMain(mainCategory.Id);
+                    <div class="col-12">
+                        <div class="card @(!mainCategory.IsActive ? "border-secondary opacity-75" : "")">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <div class="d-flex align-items-center">
+                                    <i class="@mainCategory.Icon fs-4 me-3 text-primary"></i>
+                                    <div>
+                                        <h5 class="mb-0">
+                                            @mainCategory.Name
+                                            @if (!mainCategory.IsActive)
+                                            {
+                                                <span class="badge bg-secondary ms-2">Pasif</span>
+                                            }
+                                        </h5>
+                                        <small class="text-muted">@mainCategory.Description</small>
+                                    </div>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-sm btn-outline-success" @onclick="() => ShowAddSubcategoryModal(mainCategory)" title="Alt Kategori Ekle">
+                                        <i class="bi bi-plus-lg"></i> Alt Kategori
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-primary" @onclick="() => ShowEditCategoryModal(mainCategory)" title="Düzenle">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    @if (mainCategory.IsActive)
+                                    {
+                                        <button class="btn btn-sm btn-outline-warning" @onclick="() => ToggleActive(mainCategory.Id, false)" title="Pasifleştir">
+                                            <i class="bi bi-eye-slash"></i>
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <button class="btn btn-sm btn-outline-success" @onclick="() => ToggleActive(mainCategory.Id, true)" title="Aktifleştir">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                    }
+                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteCategory(mainCategory.Id)" title="Sil">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Alt Kategoriler -->
+                            <div class="card-body">
+                                @if (subCats?.Any() == true)
+                                {
+                                    <div class="row g-2">
+                                        @foreach (var subCategory in subCats)
+                                        {
+                                            <div class="col-md-4 col-lg-3">
+                                                <div class="d-flex align-items-center justify-content-between p-2 border rounded @(!subCategory.IsActive ? "bg-light opacity-75" : "")">
+                                                    <div class="d-flex align-items-center">
+                                                        <i class="@subCategory.Icon me-2 text-muted"></i>
+                                                        <span>@subCategory.Name</span>
+                                                        @if (!subCategory.IsActive)
+                                                        {
+                                                            <span class="badge bg-secondary ms-1" style="font-size: 0.6rem;">Pasif</span>
+                                                        }
+                                                    </div>
+                                                    <div class="btn-group btn-group-sm">
+                                                        <button class="btn btn-outline-primary btn-sm" @onclick="() => ShowEditCategoryModal(subCategory)" title="Düzenle">
+                                                            <i class="bi bi-pencil"></i>
+                                                        </button>
+                                                        @if (subCategory.IsActive)
+                                                        {
+                                                            <button class="btn btn-outline-warning btn-sm" @onclick="() => ToggleActive(subCategory.Id, false)" title="Pasifleştir">
+                                                                <i class="bi bi-eye-slash"></i>
+                                                            </button>
+                                                        }
+                                                        else
+                                                        {
+                                                            <button class="btn btn-outline-success btn-sm" @onclick="() => ToggleActive(subCategory.Id, true)" title="Aktifleştir">
+                                                                <i class="bi bi-eye"></i>
+                                                            </button>
+                                                        }
+                                                        <button class="btn btn-outline-danger btn-sm" @onclick="() => DeleteCategory(subCategory.Id)" title="Sil">
+                                                            <i class="bi bi-trash"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="text-center text-muted py-3">
+                                        <i class="bi bi-folder2-open me-2"></i>
+                                        Henüz alt kategori eklenmemiş
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="text-center py-5">
+                <i class="bi bi-tags display-1 text-muted"></i>
+                <h4 class="mt-3">Henüz kategori yok</h4>
+                <p class="text-muted">İlk ana kategoriyi ekleyerek başlayın</p>
+                <button class="btn btn-primary" @onclick="ShowAddMainCategoryModal">
+                    <i class="bi bi-plus-circle me-2"></i>Ana Kategori Ekle
+                </button>
+            </div>
+        }
+    </div>
+
+    <!-- Kategori Modal -->
+    @if (showModal)
+    {
+        <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5);">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">@modalTitle</h5>
+                        <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                    </div>
+                    <EditForm Model="@editingCategory" OnValidSubmit="SaveCategory">
+                        <div class="modal-body">
+                            @if (isSubcategory && selectedParentCategory != null)
+                            {
+                                <div class="alert alert-info">
+                                    <i class="bi bi-info-circle me-2"></i>
+                                    <strong>@selectedParentCategory.Name</strong> kategorisine alt kategori ekleniyor
+                                </div>
+                            }
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Kategori Adı *</label>
+                                <InputText @bind-Value="editingCategory.Name" class="form-control" placeholder="Örn: Cep Telefonu" />
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">İkon</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="@(string.IsNullOrEmpty(editingCategory.Icon) ? "bi-tag" : editingCategory.Icon)"></i></span>
+                                    <InputText @bind-Value="editingCategory.Icon" class="form-control" placeholder="bi-phone" />
+                                </div>
+                                <small class="text-muted">Bootstrap Icons kullanın. Örn: bi-phone, bi-laptop, bi-house</small>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Açıklama</label>
+                                <InputTextArea @bind-Value="editingCategory.Description" class="form-control" rows="2" placeholder="Kategori açıklaması" />
+                            </div>
+                            
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <InputCheckbox @bind-Value="editingCategory.IsActive" class="form-check-input" id="isActive" />
+                                    <label class="form-check-label" for="isActive">Aktif</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CloseModal">İptal</button>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-lg me-2"></i>Kaydet
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    private List<Category>? mainCategories;
+    private List<Category>? allSubcategories;
+    private string? message;
+    private bool isError;
+    private bool showModal;
+    private bool isEditing;
+    private bool isSubcategory;
+    private string modalTitle = "";
+    private Category editingCategory = new();
+    private Category? selectedParentCategory;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthService.IsAdmin)
+        {
+            await LoadCategories();
+        }
+    }
+
+    private async Task LoadCategories()
+    {
+        mainCategories = await CategoryService.GetMainCategoriesIncludingInactiveAsync();
+        var allCategories = await CategoryService.GetAllCategoriesIncludingInactiveAsync();
+        allSubcategories = allCategories.Where(c => c.ParentCategoryId != null).ToList();
+    }
+
+    private List<Category>? GetSubcategoriesForMain(string mainCategoryId)
+    {
+        return allSubcategories?.Where(c => c.ParentCategoryId == mainCategoryId).OrderBy(c => c.Name).ToList();
+    }
+
+    private void ShowAddMainCategoryModal()
+    {
+        editingCategory = new Category();
+        isEditing = false;
+        isSubcategory = false;
+        selectedParentCategory = null;
+        modalTitle = "Yeni Ana Kategori";
+        showModal = true;
+    }
+
+    private void ShowAddSubcategoryModal(Category parentCategory)
+    {
+        editingCategory = new Category
+        {
+            ParentCategoryId = parentCategory.Id
+        };
+        isEditing = false;
+        isSubcategory = true;
+        selectedParentCategory = parentCategory;
+        modalTitle = "Yeni Alt Kategori";
+        showModal = true;
+    }
+
+    private void ShowEditCategoryModal(Category category)
+    {
+        editingCategory = new Category
+        {
+            Id = category.Id,
+            Name = category.Name,
+            Slug = category.Slug,
+            Icon = category.Icon,
+            Description = category.Description,
+            ParentCategoryId = category.ParentCategoryId,
+            IsActive = category.IsActive
+        };
+        isEditing = true;
+        isSubcategory = category.ParentCategoryId != null;
+        selectedParentCategory = isSubcategory ? mainCategories?.FirstOrDefault(c => c.Id == category.ParentCategoryId) : null;
+        modalTitle = isSubcategory ? "Alt Kategori Düzenle" : "Ana Kategori Düzenle";
+        showModal = true;
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+        editingCategory = new();
+        selectedParentCategory = null;
+    }
+
+    private async Task SaveCategory()
+    {
+        if (string.IsNullOrWhiteSpace(editingCategory.Name))
+        {
+            message = "Kategori adı zorunludur.";
+            isError = true;
+            return;
+        }
+
+        try
+        {
+            if (isEditing)
+            {
+                await CategoryService.UpdateCategoryAsync(editingCategory);
+                message = "Kategori başarıyla güncellendi.";
+            }
+            else
+            {
+                await CategoryService.CreateCategoryAsync(editingCategory);
+                message = isSubcategory ? "Alt kategori başarıyla eklendi." : "Ana kategori başarıyla eklendi.";
+            }
+
+            isError = false;
+            showModal = false;
+            await LoadCategories();
+        }
+        catch (Exception ex)
+        {
+            message = $"Hata: {ex.Message}";
+            isError = true;
+        }
+    }
+
+    private async Task ToggleActive(string id, bool isActive)
+    {
+        await CategoryService.SetActiveStatusAsync(id, isActive);
+        message = isActive ? "Kategori aktifleştirildi." : "Kategori pasifleştirildi.";
+        isError = false;
+        await LoadCategories();
+    }
+
+    private async Task DeleteCategory(string id)
+    {
+        var category = mainCategories?.FirstOrDefault(c => c.Id == id) ?? allSubcategories?.FirstOrDefault(c => c.Id == id);
+        var isMainCategory = category?.ParentCategoryId == null;
+        
+        if (isMainCategory)
+        {
+            var subCount = GetSubcategoriesForMain(id)?.Count ?? 0;
+            if (subCount > 0)
+            {
+                message = $"Bu ana kategori silinirse {subCount} alt kategori de silinecektir!";
+            }
+        }
+        
+        await CategoryService.DeleteCategoryAsync(id);
+        message = "Kategori silindi.";
+        isError = false;
+        await LoadCategories();
+    }
+}

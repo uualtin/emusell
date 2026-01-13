@@ -1,0 +1,438 @@
+@page "/satici/siparisler"
+@inject AuthService AuthService
+@inject OrderService OrderService
+@rendermode InteractiveServer
+
+<PageTitle>Siparişlerim - Emusell Satıcı</PageTitle>
+
+@if (!AuthService.IsSeller && !AuthService.IsAdmin)
+{
+    <div class="container py-5 text-center">
+        <i class="bi bi-shield-exclamation display-1 text-danger"></i>
+        <h2 class="mt-3">Yetkisiz Erişim</h2>
+        <p class="text-muted">Bu sayfayı görüntüleme yetkiniz yok.</p>
+        <a href="/" class="btn btn-primary">Ana Sayfaya Dön</a>
+    </div>
+}
+else
+{
+    <div class="container py-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="mb-0"><i class="bi bi-receipt me-2"></i>Siparişlerim</h1>
+                <p class="text-muted mb-0">Ürünlerinize gelen siparişleri yönetin</p>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(message))
+        {
+            <div class="alert @(isError ? "alert-danger" : "alert-success") alert-dismissible fade show">
+                @message
+                <button type="button" class="btn-close" @onclick="() => message = null"></button>
+            </div>
+        }
+
+        <!-- Durum Filtresi -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="d-flex flex-wrap gap-2">
+                    <button class="btn @(filterStatus == null ? "btn-primary" : "btn-outline-primary") btn-sm" @onclick="() => FilterByStatus(null)">
+                        Tümü (@(orders?.Count ?? 0))
+                    </button>
+                    <button class="btn @(filterStatus == OrderStatus.Pending ? "btn-warning" : "btn-outline-warning") btn-sm" @onclick="() => FilterByStatus(OrderStatus.Pending)">
+                        <i class="bi bi-clock me-1"></i>Beklemede (@GetStatusCount(OrderStatus.Pending))
+                    </button>
+                    <button class="btn @(filterStatus == OrderStatus.Confirmed ? "btn-info" : "btn-outline-info") btn-sm" @onclick="() => FilterByStatus(OrderStatus.Confirmed)">
+                        <i class="bi bi-check-circle me-1"></i>Onaylandı (@GetStatusCount(OrderStatus.Confirmed))
+                    </button>
+                    <button class="btn @(filterStatus == OrderStatus.Shipped ? "btn-primary" : "btn-outline-primary") btn-sm" @onclick="() => FilterByStatus(OrderStatus.Shipped)">
+                        <i class="bi bi-truck me-1"></i>Kargoda (@GetStatusCount(OrderStatus.Shipped))
+                    </button>
+                    <button class="btn @(filterStatus == OrderStatus.Delivered ? "btn-success" : "btn-outline-success") btn-sm" @onclick="() => FilterByStatus(OrderStatus.Delivered)">
+                        <i class="bi bi-check2-all me-1"></i>Teslim Edildi (@GetStatusCount(OrderStatus.Delivered))
+                    </button>
+                    <button class="btn @(filterStatus == OrderStatus.Cancelled ? "btn-danger" : "btn-outline-danger") btn-sm" @onclick="() => FilterByStatus(OrderStatus.Cancelled)">
+                        <i class="bi bi-x-circle me-1"></i>İptal (@GetStatusCount(OrderStatus.Cancelled))
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        @if (filteredOrders?.Any() == true)
+        {
+            <div class="card">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Sipariş No</th>
+                                <th>Müşteri</th>
+                                <th>Ürünler</th>
+                                <th>Kazanç</th>
+                                <th>Durum</th>
+                                <th>Tarih</th>
+                                <th class="text-end">İşlemler</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var order in filteredOrders)
+                            {
+                                var sellerItems = order.Items.Where(i => i.SellerId == AuthService.CurrentUser?.Id).ToList();
+                                var sellerTotal = sellerItems.Sum(i => i.Price * i.Quantity);
+
+                                <tr>
+                                    <td><strong>@order.OrderNumber</strong></td>
+                                    <td>
+                                        <div>
+                                            <strong>@order.BuyerName</strong>
+                                            <br />
+                                            <small class="text-muted">@order.BuyerEmail</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        @foreach (var item in sellerItems)
+                                        {
+                                            <div class="small">
+                                                @item.ProductTitle x@item.Quantity
+                                            </div>
+                                        }
+                                    </td>
+                                    <td>@sellerTotal.ToString("C0", new System.Globalization.CultureInfo("tr-TR"))</td>
+                                    <td>
+                                        <span class="badge @GetStatusBadgeClass(order.Status)">
+                                            @GetStatusDisplayName(order.Status)
+                                        </span>
+                                    </td>
+                                    <td>@order.CreatedAt.ToString("dd.MM.yyyy")</td>
+                                    <td class="text-end">
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-primary" @onclick="() => ShowOrderDetails(order)" title="Detay">
+                                                <i class="bi bi-eye"></i>
+                                            </button>
+                                            @if (CanUpdateStatus(order.Status))
+                                            {
+                                                <button class="btn btn-outline-success" @onclick="() => ShowUpdateStatusModal(order)" title="Durumu Güncelle">
+                                                    <i class="bi bi-arrow-repeat"></i>
+                                                </button>
+                                            }
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="text-center py-5">
+                <i class="bi bi-inbox display-1 text-muted"></i>
+                <h3 class="mt-3 text-muted">@(filterStatus != null ? "Bu durumda sipariş yok" : "Henüz sipariş yok")</h3>
+                <p class="text-muted">@(filterStatus != null ? "Diğer durumlarda siparişlerinizi kontrol edin." : "Ürünlerinize sipariş geldiğinde burada görünecek.")</p>
+            </div>
+        }
+    </div>
+
+    <!-- Sipariş Detay Modal -->
+    @if (showDetailModal && selectedOrder != null)
+    {
+        <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5);">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Sipariş Detayı - @selectedOrder.OrderNumber</h5>
+                        <button type="button" class="btn-close" @onclick="CloseModals"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <h6>Müşteri Bilgileri</h6>
+                                <p class="mb-1"><strong>@selectedOrder.BuyerName</strong></p>
+                                <p class="mb-1">@selectedOrder.BuyerEmail</p>
+                                <p class="mb-1">@selectedOrder.BuyerPhone</p>
+                                <p class="mb-0 text-muted">@selectedOrder.ShippingAddress</p>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Sipariş Durumu</h6>
+                                <p class="mb-1">
+                                    <span class="badge @GetStatusBadgeClass(selectedOrder.Status) fs-6">
+                                        @GetStatusDisplayName(selectedOrder.Status)
+                                    </span>
+                                </p>
+                                <p class="mb-1">Tarih: @selectedOrder.CreatedAt.ToString("dd.MM.yyyy HH:mm")</p>
+                                @if (selectedOrder.UpdatedAt.HasValue)
+                                {
+                                    <p class="mb-1 text-muted">Son Güncelleme: @selectedOrder.UpdatedAt.Value.ToString("dd.MM.yyyy HH:mm")</p>
+                                }
+                            </div>
+                        </div>
+
+                        <h6>Sizin Ürünleriniz</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Ürün</th>
+                                        <th>Fiyat</th>
+                                        <th>Adet</th>
+                                        <th>Toplam</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var item in selectedOrder.Items.Where(i => i.SellerId == AuthService.CurrentUser?.Id))
+                                    {
+                                        <tr>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    @if (!string.IsNullOrEmpty(item.ProductImageUrl))
+                                                    {
+                                                        <img src="@item.ProductImageUrl" class="me-2 rounded" style="width: 40px; height: 40px; object-fit: cover;" />
+                                                    }
+                                                    @item.ProductTitle
+                                                </div>
+                                            </td>
+                                            <td>@item.Price.ToString("C0", new System.Globalization.CultureInfo("tr-TR"))</td>
+                                            <td>@item.Quantity</td>
+                                            <td>@((item.Price * item.Quantity).ToString("C0", new System.Globalization.CultureInfo("tr-TR")))</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        @if (CanUpdateStatus(selectedOrder.Status))
+                        {
+                            <button type="button" class="btn btn-success" @onclick="() => { CloseModals(); ShowUpdateStatusModal(selectedOrder); }">
+                                <i class="bi bi-arrow-repeat me-2"></i>Durumu Güncelle
+                            </button>
+                        }
+                        <button type="button" class="btn btn-secondary" @onclick="CloseModals">Kapat</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Durum Güncelleme Modal -->
+    @if (showStatusModal && selectedOrder != null)
+    {
+        <div class="modal fade show d-block" style="background: rgba(0,0,0,0.5);">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Sipariş Durumunu Güncelle</h5>
+                        <button type="button" class="btn-close" @onclick="CloseModals"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Sipariş No</label>
+                            <input type="text" class="form-control" value="@selectedOrder.OrderNumber" disabled />
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Mevcut Durum</label>
+                            <div>
+                                <span class="badge @GetStatusBadgeClass(selectedOrder.Status) fs-6">
+                                    @GetStatusDisplayName(selectedOrder.Status)
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Yeni Durum</label>
+                            <div class="d-grid gap-2">
+                                @foreach (var status in GetNextAvailableStatuses(selectedOrder.Status))
+                                {
+                                    <button class="btn @GetStatusButtonClass(status) d-flex align-items-center justify-content-center gap-2" 
+                                            @onclick="() => UpdateOrderStatus(selectedOrder.Id!, status)"
+                                            disabled="@isUpdating">
+                                        @if (isUpdating && newStatus == status)
+                                        {
+                                            <span class="spinner-border spinner-border-sm"></span>
+                                        }
+                                        <i class="@GetStatusIcon(status)"></i>
+                                        @GetStatusDisplayName(status)
+                                    </button>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <strong>Not:</strong> Sipariş durumu değiştirildiğinde müşteri bilgilendirilecektir.
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseModals">İptal</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    private List<Order>? orders;
+    private List<Order>? filteredOrders;
+    private string? message;
+    private bool isError;
+    private bool showDetailModal;
+    private bool showStatusModal;
+    private bool isUpdating;
+    private Order? selectedOrder;
+    private OrderStatus? filterStatus;
+    private OrderStatus? newStatus;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthService.IsSeller || AuthService.IsAdmin)
+        {
+            await LoadOrders();
+        }
+    }
+
+    private async Task LoadOrders()
+    {
+        var userId = AuthService.CurrentUser?.Id ?? "";
+        orders = await OrderService.GetOrdersBySellerAsync(userId);
+        ApplyFilter();
+    }
+
+    private void FilterByStatus(OrderStatus? status)
+    {
+        filterStatus = status;
+        ApplyFilter();
+    }
+
+    private void ApplyFilter()
+    {
+        if (filterStatus == null)
+        {
+            filteredOrders = orders;
+        }
+        else
+        {
+            filteredOrders = orders?.Where(o => o.Status == filterStatus).ToList();
+        }
+    }
+
+    private int GetStatusCount(OrderStatus status)
+    {
+        return orders?.Count(o => o.Status == status) ?? 0;
+    }
+
+    private void ShowOrderDetails(Order order)
+    {
+        selectedOrder = order;
+        showDetailModal = true;
+    }
+
+    private void ShowUpdateStatusModal(Order order)
+    {
+        selectedOrder = order;
+        showStatusModal = true;
+    }
+
+    private void CloseModals()
+    {
+        showDetailModal = false;
+        showStatusModal = false;
+        selectedOrder = null;
+    }
+
+    private bool CanUpdateStatus(OrderStatus status)
+    {
+        // Teslim edilmiş, iptal edilmiş veya iade edilmiş siparişler güncellenemez
+        return status != OrderStatus.Delivered && 
+               status != OrderStatus.Cancelled && 
+               status != OrderStatus.Refunded;
+    }
+
+    private List<OrderStatus> GetNextAvailableStatuses(OrderStatus currentStatus)
+    {
+        return currentStatus switch
+        {
+            OrderStatus.Pending => new List<OrderStatus> { OrderStatus.Confirmed, OrderStatus.Cancelled },
+            OrderStatus.Confirmed => new List<OrderStatus> { OrderStatus.Shipped, OrderStatus.Cancelled },
+            OrderStatus.Shipped => new List<OrderStatus> { OrderStatus.Delivered },
+            _ => new List<OrderStatus>()
+        };
+    }
+
+    private async Task UpdateOrderStatus(string orderId, OrderStatus status)
+    {
+        isUpdating = true;
+        newStatus = status;
+        
+        try
+        {
+            var success = await OrderService.UpdateOrderStatusAsync(orderId, status);
+            if (success)
+            {
+                message = $"Sipariş durumu '{GetStatusDisplayName(status)}' olarak güncellendi.";
+                isError = false;
+                await LoadOrders();
+                CloseModals();
+            }
+            else
+            {
+                message = "Sipariş durumu güncellenirken bir hata oluştu.";
+                isError = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            message = $"Hata: {ex.Message}";
+            isError = true;
+        }
+        
+        isUpdating = false;
+        newStatus = null;
+    }
+
+    private string GetStatusBadgeClass(OrderStatus status) => status switch
+    {
+        OrderStatus.Pending => "bg-warning text-dark",
+        OrderStatus.Confirmed => "bg-info",
+        OrderStatus.Shipped => "bg-primary",
+        OrderStatus.Delivered => "bg-success",
+        OrderStatus.Cancelled => "bg-danger",
+        OrderStatus.Refunded => "bg-secondary",
+        _ => "bg-secondary"
+    };
+
+    private string GetStatusButtonClass(OrderStatus status) => status switch
+    {
+        OrderStatus.Pending => "btn-warning",
+        OrderStatus.Confirmed => "btn-info",
+        OrderStatus.Shipped => "btn-primary",
+        OrderStatus.Delivered => "btn-success",
+        OrderStatus.Cancelled => "btn-danger",
+        OrderStatus.Refunded => "btn-secondary",
+        _ => "btn-secondary"
+    };
+
+    private string GetStatusIcon(OrderStatus status) => status switch
+    {
+        OrderStatus.Pending => "bi bi-clock",
+        OrderStatus.Confirmed => "bi bi-check-circle",
+        OrderStatus.Shipped => "bi bi-truck",
+        OrderStatus.Delivered => "bi bi-check2-all",
+        OrderStatus.Cancelled => "bi bi-x-circle",
+        OrderStatus.Refunded => "bi bi-arrow-counterclockwise",
+        _ => "bi bi-question-circle"
+    };
+
+    private string GetStatusDisplayName(OrderStatus status) => status switch
+    {
+        OrderStatus.Pending => "Beklemede",
+        OrderStatus.Confirmed => "Onaylandı",
+        OrderStatus.Shipped => "Kargoda",
+        OrderStatus.Delivered => "Teslim Edildi",
+        OrderStatus.Cancelled => "İptal Edildi",
+        OrderStatus.Refunded => "İade Edildi",
+        _ => "Bilinmiyor"
+    };
+}

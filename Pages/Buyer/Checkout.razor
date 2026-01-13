@@ -1,0 +1,292 @@
+@page "/odeme"
+@inject AuthService AuthService
+@inject CartService CartService
+@inject OrderService OrderService
+@inject ProductService ProductService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<PageTitle>Ödeme - Emusell</PageTitle>
+
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="container py-5 text-center">
+        <i class="bi bi-lock display-1 text-warning"></i>
+        <h2 class="mt-3">Ödeme İçin Giriş Yapın</h2>
+        <p class="text-muted">Ödeme işlemi için hesabınıza giriş yapın.</p>
+        <a href="/giris" class="btn btn-primary">Giriş Yap</a>
+    </div>
+}
+else if (userCart?.Items?.Any() != true)
+{
+    <div class="container py-5 text-center">
+        <i class="bi bi-cart-x display-1 text-muted"></i>
+        <h2 class="mt-3">Sepetiniz Boş</h2>
+        <p class="text-muted">Ödeme yapabilmek için sepetinize ürün ekleyin.</p>
+        <a href="/urunler" class="btn btn-primary">Ürünlere Git</a>
+    </div>
+}
+else
+{
+    <div class="container py-4">
+        <h1 class="mb-4"><i class="bi bi-credit-card me-2"></i>Ödeme</h1>
+
+        @if (!string.IsNullOrEmpty(message))
+        {
+            <div class="alert @(isError ? "alert-danger" : "alert-success")">
+                @message
+            </div>
+        }
+
+        <div class="row">
+            <!-- Teslimat ve Ödeme Bilgileri -->
+            <div class="col-lg-8">
+                <EditForm Model="@checkoutModel" OnValidSubmit="HandleCheckout" FormName="CheckoutForm">
+                    <!-- Teslimat Adresi -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="bi bi-geo-alt me-2"></i>Teslimat Adresi</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Ad Soyad</label>
+                                    <InputText @bind-Value="checkoutModel.FullName" class="form-control" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Telefon</label>
+                                    <InputText @bind-Value="checkoutModel.Phone" class="form-control" />
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label">Adres</label>
+                                    <InputTextArea @bind-Value="checkoutModel.Address" class="form-control" rows="3" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Ödeme Yöntemi -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="bi bi-wallet me-2"></i>Ödeme Yöntemi</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <div class="form-check card p-3 @(checkoutModel.PaymentMethod == "credit_card" ? "border-primary" : "")">
+                                        <input type="radio" id="creditCard" name="paymentMethod" value="credit_card" checked="@(checkoutModel.PaymentMethod == "credit_card")" @onchange="@(() => checkoutModel.PaymentMethod = "credit_card")" class="form-check-input" />
+                                        <label class="form-check-label" for="creditCard">
+                                            <i class="bi bi-credit-card fs-4 d-block mb-2"></i>
+                                            Kredi Kartı
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check card p-3 @(checkoutModel.PaymentMethod == "bank_transfer" ? "border-primary" : "")">
+                                        <input type="radio" id="bankTransfer" name="paymentMethod" value="bank_transfer" checked="@(checkoutModel.PaymentMethod == "bank_transfer")" @onchange="@(() => checkoutModel.PaymentMethod = "bank_transfer")" class="form-check-input" />
+                                        <label class="form-check-label" for="bankTransfer">
+                                            <i class="bi bi-bank fs-4 d-block mb-2"></i>
+                                            Havale/EFT
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check card p-3 @(checkoutModel.PaymentMethod == "cash_on_delivery" ? "border-primary" : "")">
+                                        <input type="radio" id="cashOnDelivery" name="paymentMethod" value="cash_on_delivery" checked="@(checkoutModel.PaymentMethod == "cash_on_delivery")" @onchange="@(() => checkoutModel.PaymentMethod = "cash_on_delivery")" class="form-check-input" />
+                                        <label class="form-check-label" for="cashOnDelivery">
+                                            <i class="bi bi-cash fs-4 d-block mb-2"></i>
+                                            Kapıda Ödeme
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            @if (checkoutModel.PaymentMethod == "credit_card")
+                            {
+                                <div class="row g-3 mt-3">
+                                    <div class="col-12">
+                                        <label class="form-label">Kart Numarası</label>
+                                        <InputText @bind-Value="checkoutModel.CardNumber" class="form-control" placeholder="1234 5678 9012 3456" />
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Son Kullanma Tarihi</label>
+                                        <InputText @bind-Value="checkoutModel.CardExpiry" class="form-control" placeholder="MM/YY" />
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">CVV</label>
+                                        <InputText @bind-Value="checkoutModel.CardCvv" class="form-control" placeholder="123" />
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Sipariş Notu -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="bi bi-chat-left-text me-2"></i>Sipariş Notu (Opsiyonel)</h5>
+                        </div>
+                        <div class="card-body">
+                            <InputTextArea @bind-Value="checkoutModel.Notes" class="form-control" rows="2" placeholder="Teslimat için özel notlarınız..." />
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a href="/sepet" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-2"></i>Sepete Dön
+                        </a>
+                        <button type="submit" class="btn btn-success btn-lg" disabled="@isLoading">
+                            @if (isLoading)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                            }
+                            <i class="bi bi-check-circle me-2"></i>Siparişi Tamamla
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+
+            <!-- Sipariş Özeti -->
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Sipariş Özeti</h5>
+                    </div>
+                    <div class="card-body">
+                        @foreach (var item in userCart.Items)
+                        {
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div class="d-flex align-items-center">
+                                    <img src="@item.ProductImageUrl" class="rounded me-2" style="width: 40px; height: 40px; object-fit: cover;" onerror="this.src='https://via.placeholder.com/40'" />
+                                    <div>
+                                        <span class="small">@item.ProductTitle</span>
+                                        <span class="text-muted small d-block">x@item.Quantity</span>
+                                    </div>
+                                </div>
+                                <strong>@((item.Price * item.Quantity).ToString("C0", new System.Globalization.CultureInfo("tr-TR")))</strong>
+                            </div>
+                        }
+                        <hr />
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Ara Toplam</span>
+                            <span>@userCart.TotalAmount.ToString("C0", new System.Globalization.CultureInfo("tr-TR"))</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Kargo</span>
+                            <span class="text-success">Ücretsiz</span>
+                        </div>
+                        <hr />
+                        <div class="d-flex justify-content-between">
+                            <strong class="fs-5">Toplam</strong>
+                            <strong class="fs-5 text-primary">@userCart.TotalAmount.ToString("C0", new System.Globalization.CultureInfo("tr-TR"))</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private Emusell.Models.Cart? userCart;
+    private CheckoutModel checkoutModel = new();
+    private string? message;
+    private bool isError;
+    private bool isLoading;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthService.IsAuthenticated)
+        {
+            await LoadCart();
+            
+            // Pre-fill user info
+            checkoutModel.FullName = AuthService.CurrentUser?.FullName ?? "";
+            checkoutModel.Phone = AuthService.CurrentUser?.Phone ?? "";
+            checkoutModel.Address = AuthService.CurrentUser?.Address ?? "";
+        }
+    }
+
+    private async Task LoadCart()
+    {
+        var userId = AuthService.CurrentUser?.Id ?? "";
+        userCart = await CartService.GetCartByUserIdAsync(userId);
+    }
+
+    private async Task HandleCheckout()
+    {
+        if (userCart?.Items?.Any() != true)
+        {
+            message = "Sepetiniz boş.";
+            isError = true;
+            return;
+        }
+
+        if (string.IsNullOrEmpty(checkoutModel.FullName) || string.IsNullOrEmpty(checkoutModel.Address) || string.IsNullOrEmpty(checkoutModel.Phone))
+        {
+            message = "Lütfen teslimat bilgilerini doldurun.";
+            isError = true;
+            return;
+        }
+
+        isLoading = true;
+
+        try
+        {
+            var order = new Order
+            {
+                BuyerId = AuthService.CurrentUser?.Id ?? "",
+                BuyerName = checkoutModel.FullName,
+                BuyerEmail = AuthService.CurrentUser?.Email ?? "",
+                BuyerPhone = checkoutModel.Phone,
+                ShippingAddress = checkoutModel.Address,
+                PaymentMethod = checkoutModel.PaymentMethod,
+                Notes = checkoutModel.Notes,
+                TotalAmount = userCart.TotalAmount,
+                Items = userCart.Items.Select(i => new OrderItem
+                {
+                    ProductId = i.ProductId,
+                    ProductTitle = i.ProductTitle,
+                    ProductImageUrl = i.ProductImageUrl,
+                    Price = i.Price,
+                    Quantity = i.Quantity,
+                    SellerId = i.SellerId,
+                    SellerName = i.SellerName
+                }).ToList(),
+                PaymentStatus = checkoutModel.PaymentMethod == "cash_on_delivery" ? PaymentStatus.Pending : PaymentStatus.Completed
+            };
+
+            await OrderService.CreateOrderAsync(order);
+
+            // Mark products as sold
+            foreach (var item in userCart.Items)
+            {
+                await ProductService.MarkAsSoldAsync(item.ProductId);
+            }
+
+            // Clear cart
+            await CartService.ClearCartAsync(AuthService.CurrentUser?.Id ?? "");
+
+            Navigation.NavigateTo($"/siparis-onay/{order.OrderNumber}");
+        }
+        catch (Exception ex)
+        {
+            message = $"Sipariş oluşturulamadı: {ex.Message}";
+            isError = true;
+        }
+
+        isLoading = false;
+    }
+
+    public class CheckoutModel
+    {
+        public string FullName { get; set; } = "";
+        public string Phone { get; set; } = "";
+        public string Address { get; set; } = "";
+        public string PaymentMethod { get; set; } = "credit_card";
+        public string CardNumber { get; set; } = "";
+        public string CardExpiry { get; set; } = "";
+        public string CardCvv { get; set; } = "";
+        public string? Notes { get; set; }
+    }
+}

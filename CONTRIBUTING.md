@@ -4,10 +4,11 @@ ITEC420 Framework Based Internet Applications dersi kapsamında geliştirilen Em
 
 ## 📚 Ders Bilgileri
 
-- **Ders:** ITEC420 Framework Based Internet Applications
-- **Proje:** Emusell - 2. El Satış Sitesi
+- **Ders:** ITEC420 Framework Based Internet Applications / CMPR208
+- **Proje:** Emusell - İkinci El E-Ticaret Platformu
 - **Team Leader:** Umut Utku Altın
-- **Framework:** C# Blazor WebAssembly
+- **Framework:** C# Blazor Server (.NET 9.0)
+- **Veritabanı:** MongoDB Atlas (Cloud)
 
 ## 📋 Genel Kurallar
 

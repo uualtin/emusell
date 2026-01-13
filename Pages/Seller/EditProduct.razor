@@ -1,0 +1,489 @@
+@page "/satici/urun-duzenle/{ProductId}"
+@inject AuthService AuthService
+@inject ProductService ProductService
+@inject CategoryService CategoryService
+@inject NavigationManager Navigation
+@inject IWebHostEnvironment Environment
+@rendermode InteractiveServer
+
+<PageTitle>Ürün Düzenle - Emusell</PageTitle>
+
+@if (!AuthService.IsSeller && !AuthService.IsAdmin)
+{
+    <div class="container py-5 text-center">
+        <i class="bi bi-shield-exclamation display-1 text-danger"></i>
+        <h2 class="mt-3">Yetkisiz Erişim</h2>
+        <p class="text-muted">Bu sayfayı görüntüleme yetkiniz yok.</p>
+        <a href="/" class="btn btn-primary">Ana Sayfaya Dön</a>
+    </div>
+}
+else if (product == null)
+{
+    <div class="container py-5 text-center">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Yükleniyor...</span>
+        </div>
+        <p class="mt-3">Ürün yükleniyor...</p>
+    </div>
+}
+else
+{
+    <div class="container py-4">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="card shadow">
+                    <div class="card-header">
+                        <h4 class="mb-0"><i class="bi bi-pencil me-2"></i>Ürün Düzenle</h4>
+                    </div>
+                    <div class="card-body">
+                        @if (!string.IsNullOrEmpty(message))
+                        {
+                            <div class="alert @(isError ? "alert-danger" : "alert-success")">
+                                @message
+                            </div>
+                        }
+
+                        <EditForm Model="@product" OnValidSubmit="HandleSubmit" FormName="EditProductForm">
+                            <DataAnnotationsValidator />
+
+                            <div class="row">
+                                <div class="col-12 mb-3">
+                                    <label class="form-label">Ürün Başlığı *</label>
+                                    <InputText @bind-Value="product.Title" class="form-control" />
+                                </div>
+
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Ana Kategori *</label>
+                                    <select class="form-select" value="@selectedMainCategoryId" @onchange="OnMainCategoryChanged">
+                                        <option value="">Ana Kategori Seçin</option>
+                                        @if (mainCategories != null)
+                                        {
+                                            @foreach (var category in mainCategories)
+                                            {
+                                                <option value="@category.Id">@category.Name</option>
+                                            }
+                                        }
+                                    </select>
+                                </div>
+
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Alt Kategori</label>
+                                    <select class="form-select" value="@selectedSubCategoryId" @onchange="OnSubCategoryChanged" disabled="@(subCategories == null || !subCategories.Any())">
+                                        <option value="">@(subCategories?.Any() == true ? "Alt Kategori Seçin (Opsiyonel)" : "Önce ana kategori seçin")</option>
+                                        @if (subCategories != null)
+                                        {
+                                            @foreach (var category in subCategories)
+                                            {
+                                                <option value="@category.Id">@category.Name</option>
+                                            }
+                                        }
+                                    </select>
+                                </div>
+
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Fiyat (₺) *</label>
+                                    <InputNumber @bind-Value="product.Price" class="form-control" />
+                                </div>
+
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Ürün Durumu *</label>
+                                    <InputSelect @bind-Value="product.Condition" class="form-select">
+                                        <option value="@ProductCondition.Yeni">Yeni</option>
+                                        <option value="@ProductCondition.SifirGibi">Sıfır Gibi</option>
+                                        <option value="@ProductCondition.Iyi">İyi</option>
+                                        <option value="@ProductCondition.Orta">Orta</option>
+                                        <option value="@ProductCondition.Kullanilmis">Kullanılmış</option>
+                                    </InputSelect>
+                                </div>
+
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Konum</label>
+                                    <InputText @bind-Value="product.Location" class="form-control" />
+                                </div>
+
+                                <div class="col-12 mb-3">
+                                    <label class="form-label">Açıklama *</label>
+                                    <InputTextArea @bind-Value="product.Description" class="form-control" rows="4" />
+                                </div>
+
+                                <!-- Görsel Yükleme / Mevcut Görsel -->
+                                <div class="col-12 mb-3">
+                                    <label class="form-label">Ürün Görseli</label>
+                                    
+                                    <!-- Mevcut Görsel -->
+                                    @if (!string.IsNullOrEmpty(imagePreview))
+                                    {
+                                        <div class="image-preview-container mb-3">
+                                            <img src="@imagePreview" class="img-fluid rounded" alt="Mevcut Görsel" />
+                                            <button type="button" class="btn btn-warning btn-sm change-image" @onclick="ShowUploadArea">
+                                                <i class="bi bi-pencil"></i> Değiştir
+                                            </button>
+                                        </div>
+                                    }
+                                    
+                                    <!-- Yükleme Alanı -->
+                                    @if (showUploadArea || string.IsNullOrEmpty(imagePreview))
+                                    {
+                                        <div class="upload-area @(isDragging ? "dragging" : "")" 
+                                             @ondragenter="HandleDragEnter" 
+                                             @ondragleave="HandleDragLeave"
+                                             @ondragover:preventDefault="true">
+                                            <InputFile OnChange="HandleFileSelected" accept="image/*" class="form-control" id="imageUpload" />
+                                            <div class="upload-placeholder">
+                                                <i class="bi bi-cloud-arrow-up display-4 text-muted"></i>
+                                                <p class="text-muted mb-0 mt-2">Yeni görsel seçmek için tıklayın veya sürükleyin</p>
+                                                <small class="text-muted">PNG, JPG, WEBP - Maksimum 5MB</small>
+                                            </div>
+                                        </div>
+                                        @if (isUploading)
+                                        {
+                                            <div class="progress mt-2">
+                                                <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 100%"></div>
+                                            </div>
+                                        }
+                                        @if (!string.IsNullOrEmpty(originalImageUrl))
+                                        {
+                                            <button type="button" class="btn btn-link btn-sm mt-2" @onclick="CancelImageChange">
+                                                <i class="bi bi-x-lg me-1"></i>İptal
+                                            </button>
+                                        }
+                                    }
+                                </div>
+
+                                <div class="col-md-6 mb-3">
+                                    <div class="form-check form-switch">
+                                        <InputCheckbox @bind-Value="product.IsActive" class="form-check-input" id="isActive" />
+                                        <label class="form-check-label" for="isActive">Aktif (Görünür)</label>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6 mb-3">
+                                    <div class="form-check form-switch">
+                                        <InputCheckbox @bind-Value="product.IsSold" class="form-check-input" id="isSold" />
+                                        <label class="form-check-label" for="isSold">Satıldı</label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="d-flex gap-2 justify-content-end mt-4">
+                                <a href="/satici/urunlerim" class="btn btn-secondary">
+                                    <i class="bi bi-x-lg me-2"></i>İptal
+                                </a>
+                                <button type="submit" class="btn btn-primary" disabled="@(isLoading || isUploading)">
+                                    @if (isLoading)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2"></span>
+                                    }
+                                    <i class="bi bi-check-lg me-2"></i>Değişiklikleri Kaydet
+                                </button>
+                            </div>
+                        </EditForm>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .upload-area {
+        position: relative;
+        border: 2px dashed #dee2e6;
+        border-radius: 0.5rem;
+        padding: 2rem;
+        text-align: center;
+        transition: all 0.3s ease;
+        background: #f8f9fa;
+    }
+    
+    .upload-area:hover, .upload-area.dragging {
+        border-color: var(--bs-primary);
+        background: rgba(99, 102, 241, 0.05);
+    }
+    
+    .upload-area input[type="file"] {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        cursor: pointer;
+    }
+    
+    .upload-placeholder {
+        pointer-events: none;
+    }
+    
+    .image-preview-container {
+        position: relative;
+        display: inline-block;
+        max-width: 300px;
+    }
+    
+    .image-preview-container img {
+        max-height: 200px;
+        border: 1px solid #dee2e6;
+    }
+    
+    .change-image {
+        position: absolute;
+        bottom: 10px;
+        right: 10px;
+    }
+</style>
+
+@code {
+    [Parameter]
+    public string? ProductId { get; set; }
+
+    private Product? product;
+    private List<Category>? mainCategories;
+    private List<Category>? subCategories;
+    private string? selectedMainCategoryId;
+    private string? selectedSubCategoryId;
+    private string? message;
+    private bool isError;
+    private bool isLoading;
+    private bool isUploading;
+    private bool isDragging;
+    private bool showUploadArea;
+    private string? imagePreview;
+    private string? originalImageUrl;
+    private string? uploadedFileName;
+
+    private const long MaxFileSize = 5 * 1024 * 1024; // 5MB
+
+    protected override async Task OnInitializedAsync()
+    {
+        if ((AuthService.IsSeller || AuthService.IsAdmin) && !string.IsNullOrEmpty(ProductId))
+        {
+            mainCategories = await CategoryService.GetMainCategoriesAsync();
+            product = await ProductService.GetProductByIdAsync(ProductId);
+
+            // Check if user owns this product
+            if (product != null && product.SellerId != AuthService.CurrentUser?.Id && !AuthService.IsAdmin)
+            {
+                product = null;
+            }
+            else if (product != null)
+            {
+                imagePreview = product.ImageUrl;
+                originalImageUrl = product.ImageUrl;
+
+                // Mevcut kategorileri yükle
+                await LoadExistingCategorySelection();
+            }
+        }
+    }
+
+    private async Task LoadExistingCategorySelection()
+    {
+        if (product == null || string.IsNullOrEmpty(product.CategoryId)) return;
+
+        // Ürünün kategorisini bul
+        var currentCategory = await CategoryService.GetCategoryByIdAsync(product.CategoryId);
+        if (currentCategory == null) return;
+
+        if (currentCategory.ParentCategoryId == null)
+        {
+            // Ana kategori seçili
+            selectedMainCategoryId = currentCategory.Id;
+            subCategories = await CategoryService.GetSubcategoriesAsync(selectedMainCategoryId);
+        }
+        else
+        {
+            // Alt kategori seçili
+            selectedMainCategoryId = currentCategory.ParentCategoryId;
+            selectedSubCategoryId = currentCategory.Id;
+            subCategories = await CategoryService.GetSubcategoriesAsync(selectedMainCategoryId);
+        }
+    }
+
+    private async Task OnMainCategoryChanged(ChangeEventArgs e)
+    {
+        selectedMainCategoryId = e.Value?.ToString();
+        selectedSubCategoryId = null;
+        subCategories = null;
+
+        if (!string.IsNullOrEmpty(selectedMainCategoryId))
+        {
+            subCategories = await CategoryService.GetSubcategoriesAsync(selectedMainCategoryId);
+            
+            if (product != null)
+            {
+                product.CategoryId = selectedMainCategoryId;
+                var mainCategory = mainCategories?.FirstOrDefault(c => c.Id == selectedMainCategoryId);
+                product.CategoryName = mainCategory?.Name ?? "";
+            }
+        }
+        else if (product != null)
+        {
+            product.CategoryId = "";
+            product.CategoryName = "";
+        }
+    }
+
+    private void OnSubCategoryChanged(ChangeEventArgs e)
+    {
+        selectedSubCategoryId = e.Value?.ToString();
+
+        if (product == null) return;
+
+        if (!string.IsNullOrEmpty(selectedSubCategoryId))
+        {
+            product.CategoryId = selectedSubCategoryId;
+            var subCategory = subCategories?.FirstOrDefault(c => c.Id == selectedSubCategoryId);
+            product.CategoryName = subCategory?.Name ?? "";
+        }
+        else if (!string.IsNullOrEmpty(selectedMainCategoryId))
+        {
+            product.CategoryId = selectedMainCategoryId;
+            var mainCategory = mainCategories?.FirstOrDefault(c => c.Id == selectedMainCategoryId);
+            product.CategoryName = mainCategory?.Name ?? "";
+        }
+    }
+
+    private void HandleDragEnter() => isDragging = true;
+    private void HandleDragLeave() => isDragging = false;
+
+    private void ShowUploadArea()
+    {
+        showUploadArea = true;
+    }
+
+    private void CancelImageChange()
+    {
+        // Yeni yüklenen dosyayı sil
+        if (!string.IsNullOrEmpty(uploadedFileName))
+        {
+            var uploadsFolder = Path.Combine(Environment.WebRootPath, "uploads");
+            var filePath = Path.Combine(uploadsFolder, uploadedFileName);
+            if (File.Exists(filePath))
+            {
+                File.Delete(filePath);
+            }
+            uploadedFileName = null;
+        }
+
+        // Orijinal görsele dön
+        if (product != null)
+        {
+            product.ImageUrl = originalImageUrl ?? "";
+        }
+        imagePreview = originalImageUrl;
+        showUploadArea = false;
+    }
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        
+        if (file == null) return;
+
+        // Dosya boyutu kontrolü
+        if (file.Size > MaxFileSize)
+        {
+            message = "Dosya boyutu 5MB'dan büyük olamaz.";
+            isError = true;
+            return;
+        }
+
+        // Dosya türü kontrolü
+        var allowedTypes = new[] { "image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif" };
+        if (!allowedTypes.Contains(file.ContentType.ToLower()))
+        {
+            message = "Sadece resim dosyaları (JPG, PNG, WEBP, GIF) yüklenebilir.";
+            isError = true;
+            return;
+        }
+
+        isUploading = true;
+        message = null;
+        StateHasChanged();
+
+        try
+        {
+            // Benzersiz dosya adı oluştur
+            var extension = Path.GetExtension(file.Name);
+            var fileName = $"{Guid.NewGuid()}{extension}";
+            var uploadsFolder = Path.Combine(Environment.WebRootPath, "uploads");
+            
+            // Klasör yoksa oluştur
+            if (!Directory.Exists(uploadsFolder))
+            {
+                Directory.CreateDirectory(uploadsFolder);
+            }
+
+            var filePath = Path.Combine(uploadsFolder, fileName);
+
+            // Dosyayı kaydet
+            await using var stream = new FileStream(filePath, FileMode.Create);
+            await file.OpenReadStream(MaxFileSize).CopyToAsync(stream);
+
+            // Önceki yüklenen yeni dosyayı sil (bu düzenleme oturumunda)
+            if (!string.IsNullOrEmpty(uploadedFileName))
+            {
+                var oldFilePath = Path.Combine(uploadsFolder, uploadedFileName);
+                if (File.Exists(oldFilePath))
+                {
+                    File.Delete(oldFilePath);
+                }
+            }
+
+            uploadedFileName = fileName;
+            if (product != null)
+            {
+                product.ImageUrl = $"/uploads/{fileName}";
+            }
+            imagePreview = $"/uploads/{fileName}";
+            showUploadArea = false;
+        }
+        catch (Exception ex)
+        {
+            message = $"Dosya yüklenirken hata oluştu: {ex.Message}";
+            isError = true;
+        }
+        finally
+        {
+            isUploading = false;
+            isDragging = false;
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (product == null) return;
+
+        isLoading = true;
+
+        try
+        {
+            // Eski görseli sil (eğer değiştirildi ve lokal ise)
+            if (!string.IsNullOrEmpty(originalImageUrl) && 
+                originalImageUrl != product.ImageUrl && 
+                originalImageUrl.StartsWith("/uploads/"))
+            {
+                var uploadsFolder = Path.Combine(Environment.WebRootPath, "uploads");
+                var oldFileName = Path.GetFileName(originalImageUrl);
+                var oldFilePath = Path.Combine(uploadsFolder, oldFileName);
+                if (File.Exists(oldFilePath))
+                {
+                    File.Delete(oldFilePath);
+                }
+            }
+
+            await ProductService.UpdateProductAsync(product);
+            originalImageUrl = product.ImageUrl; // Güncelle
+            message = "Ürün başarıyla güncellendi.";
+            isError = false;
+        }
+        catch (Exception ex)
+        {
+            message = $"Hata: {ex.Message}";
+            isError = true;
+        }
+
+        isLoading = false;
+    }
+}

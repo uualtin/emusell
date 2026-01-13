@@ -3,6 +3,16 @@ bin/
 obj/
 out/
 
+# Sensitive configuration files
+appsettings.Development.json
+appsettings.Production.json
+appsettings.Local.json
+!appsettings.json
+!appsettings.Example.json
+
+# User secrets
+secrets.json
+
 # User-specific files
 *.rsuser
 *.suo

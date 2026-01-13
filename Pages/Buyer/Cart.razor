@@ -1,0 +1,174 @@
+@page "/sepet"
+@inject AuthService AuthService
+@inject CartService CartService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<PageTitle>Sepetim - Emusell</PageTitle>
+
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="container py-5 text-center">
+        <i class="bi bi-cart-x display-1 text-warning"></i>
+        <h2 class="mt-3">Sepeti Görüntülemek İçin Giriş Yapın</h2>
+        <p class="text-muted">Alışveriş yapmak için hesabınıza giriş yapın.</p>
+        <a href="/giris" class="btn btn-primary">Giriş Yap</a>
+    </div>
+}
+else
+{
+    <div class="container py-4">
+        <h1 class="mb-4"><i class="bi bi-cart me-2"></i>Sepetim</h1>
+
+        @if (!string.IsNullOrEmpty(message))
+        {
+            <div class="alert @(isError ? "alert-danger" : "alert-success") alert-dismissible fade show">
+                @message
+                <button type="button" class="btn-close" @onclick="() => message = null"></button>
+            </div>
+        }
+
+        @if (userCart?.Items?.Any() == true)
+        {
+            <div class="row">
+                <!-- Sepet Ürünleri -->
+                <div class="col-lg-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Sepetinizdeki Ürünler (@userCart.Items.Count)</h5>
+                        </div>
+                        <div class="card-body p-0">
+                            @foreach (var item in userCart.Items)
+                            {
+                                <div class="d-flex p-3 border-bottom">
+                                    <img src="@item.ProductImageUrl" class="rounded me-3" style="width: 100px; height: 100px; object-fit: cover;" onerror="this.src='https://via.placeholder.com/100'" />
+                                    <div class="flex-grow-1">
+                                        <h6 class="mb-1">@item.ProductTitle</h6>
+                                        <p class="text-muted small mb-2">Satıcı: @item.SellerName</p>
+                                        <div class="d-flex align-items-center gap-3">
+                                            <div class="input-group" style="width: 130px;">
+                                                <button class="btn btn-outline-secondary btn-sm" @onclick="() => UpdateQuantity(item.ProductId, item.Quantity - 1)">
+                                                    <i class="bi bi-dash"></i>
+                                                </button>
+                                                <span class="input-group-text px-3">@item.Quantity</span>
+                                                <button class="btn btn-outline-secondary btn-sm" @onclick="() => UpdateQuantity(item.ProductId, item.Quantity + 1)">
+                                                    <i class="bi bi-plus"></i>
+                                                </button>
+                                            </div>
+                                            <button class="btn btn-outline-danger btn-sm" @onclick="() => RemoveFromCart(item.ProductId)">
+                                                <i class="bi bi-trash"></i> Kaldır
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="text-end">
+                                        <strong class="fs-5">@((item.Price * item.Quantity).ToString("C0", new System.Globalization.CultureInfo("tr-TR")))</strong>
+                                        <p class="text-muted small mb-0">@item.Price.ToString("C0", new System.Globalization.CultureInfo("tr-TR")) / adet</p>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                        <div class="card-footer">
+                            <button class="btn btn-outline-danger btn-sm" @onclick="ClearCart">
+                                <i class="bi bi-trash me-2"></i>Sepeti Temizle
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sipariş Özeti -->
+                <div class="col-lg-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Sipariş Özeti</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Ürünler (@userCart.TotalItems adet)</span>
+                                <span>@userCart.TotalAmount.ToString("C0", new System.Globalization.CultureInfo("tr-TR"))</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Kargo</span>
+                                <span class="text-success">Ücretsiz</span>
+                            </div>
+                            <hr />
+                            <div class="d-flex justify-content-between mb-3">
+                                <strong class="fs-5">Toplam</strong>
+                                <strong class="fs-5 text-primary">@userCart.TotalAmount.ToString("C0", new System.Globalization.CultureInfo("tr-TR"))</strong>
+                            </div>
+                            <div class="d-grid">
+                                <a href="/odeme" class="btn btn-primary btn-lg">
+                                    <i class="bi bi-credit-card me-2"></i>Ödemeye Geç
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card mt-3">
+                        <div class="card-body">
+                            <h6><i class="bi bi-shield-check text-success me-2"></i>Güvenli Alışveriş</h6>
+                            <p class="small text-muted mb-0">
+                                256-bit SSL şifreleme ile verileriniz güvende. Güvenle alışveriş yapın.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="text-center py-5">
+                <i class="bi bi-cart display-1 text-muted"></i>
+                <h3 class="mt-3 text-muted">Sepetiniz Boş</h3>
+                <p class="text-muted">Hemen alışverişe başlayın ve fırsatları kaçırmayın!</p>
+                <a href="/urunler" class="btn btn-primary btn-lg">
+                    <i class="bi bi-grid me-2"></i>Ürünleri Keşfet
+                </a>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private Emusell.Models.Cart? userCart;
+    private string? message;
+    private bool isError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthService.IsAuthenticated)
+        {
+            await LoadCart();
+        }
+    }
+
+    private async Task LoadCart()
+    {
+        var userId = AuthService.CurrentUser?.Id ?? "";
+        userCart = await CartService.GetCartByUserIdAsync(userId);
+    }
+
+    private async Task UpdateQuantity(string productId, int quantity)
+    {
+        var userId = AuthService.CurrentUser?.Id ?? "";
+        await CartService.UpdateQuantityAsync(userId, productId, quantity);
+        await LoadCart();
+    }
+
+    private async Task RemoveFromCart(string productId)
+    {
+        var userId = AuthService.CurrentUser?.Id ?? "";
+        await CartService.RemoveFromCartAsync(userId, productId);
+        message = "Ürün sepetten kaldırıldı.";
+        isError = false;
+        await LoadCart();
+    }
+
+    private async Task ClearCart()
+    {
+        var userId = AuthService.CurrentUser?.Id ?? "";
+        await CartService.ClearCartAsync(userId);
+        message = "Sepet temizlendi.";
+        isError = false;
+        await LoadCart();
+    }
+}
